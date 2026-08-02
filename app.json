@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Expense_tracker",
-    "slug": "Expense_tracker",
+    "name": "ExpenseTracker",
+    "slug": "ExpenseTracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -12,12 +12,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#6C5CE7",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "package": "com.abinashbir.ExpenseTracker"
     },
     "web": {
       "bundler": "metro",
@@ -31,9 +31,17 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0D1117"
         }
-      ]
+      ],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true,
+          "useSQLCipher": false
+        }
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
