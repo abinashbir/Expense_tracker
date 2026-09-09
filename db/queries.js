@@ -315,6 +315,18 @@ export async function getBudgetStatus(db, categoryId, yearMonth) {
   };
 }
 
+export async function getTotalMonthlyBudget(db, yearMonth) {
+  const result = await db.getFirstAsync(
+    "SELECT value FROM settings WHERE key = ?",
+    [`budget_${yearMonth}`]
+  );
+  return result ? parseFloat(result.value) : 0;
+}
+
+export async function setTotalMonthlyBudget(db, yearMonth, amount) {
+  await setSetting(db, `budget_${yearMonth}`, amount.toString());
+}
+
 // =====================================================
 // SETTINGS QUERIES
 // =====================================================

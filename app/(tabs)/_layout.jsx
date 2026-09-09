@@ -42,11 +42,8 @@ export default function TabLayout() {
         options={{
           title: 'Add',
           tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.addButton, { backgroundColor: theme.primary }]}>
-              <Ionicons name="add" size={28} color="#FFFFFF" />
-            </View>
+            <Ionicons name={focused ? 'add-circle' : 'add-circle-outline'} size={26} color={color} />
           ),
-          tabBarLabel: () => null,
         }}
       />
       <Tabs.Screen

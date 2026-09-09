@@ -91,6 +91,10 @@ export async function migrateDbIfNeeded(db) {
       'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
       ['darkMode', 'system']
     );
+    await db.runAsync(
+      'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+      ['onboarding_completed', 'false']
+    );
 
     currentVersion = 1;
   }

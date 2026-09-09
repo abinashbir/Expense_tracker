@@ -9,6 +9,7 @@ const ACTIONS = {
   SET_CATEGORIES: 'SET_CATEGORIES',
   SET_BUDGETS: 'SET_BUDGETS',
   SET_MONTHLY_TOTAL: 'SET_MONTHLY_TOTAL',
+  SET_TOTAL_MONTHLY_BUDGET: 'SET_TOTAL_MONTHLY_BUDGET',
   SET_CATEGORY_BREAKDOWN: 'SET_CATEGORY_BREAKDOWN',
   SET_SELECTED_MONTH: 'SET_SELECTED_MONTH',
   SET_LOADING: 'SET_LOADING',
@@ -21,6 +22,7 @@ const initialState = {
   categories: [],
   budgets: [],
   monthlyTotal: 0,
+  totalMonthlyBudget: 0,
   categoryBreakdown: [],
   selectedMonth: getCurrentMonth(),
   loading: true,
@@ -37,6 +39,8 @@ function reducer(state, action) {
       return { ...state, budgets: action.payload };
     case ACTIONS.SET_MONTHLY_TOTAL:
       return { ...state, monthlyTotal: action.payload };
+    case ACTIONS.SET_TOTAL_MONTHLY_BUDGET:
+      return { ...state, totalMonthlyBudget: action.payload };
     case ACTIONS.SET_CATEGORY_BREAKDOWN:
       return { ...state, categoryBreakdown: action.payload };
     case ACTIONS.SET_SELECTED_MONTH:
@@ -71,6 +75,7 @@ export function ExpenseProvider({ children }) {
         loadCategories(),
         loadBudgets(),
         loadMonthlyTotal(),
+        loadTotalMonthlyBudget(),
         loadCategoryBreakdown(),
       ]);
     } catch (e) {
@@ -102,6 +107,11 @@ export function ExpenseProvider({ children }) {
   const loadMonthlyTotal = useCallback(async () => {
     const total = await queries.getMonthlyTotal(db, state.selectedMonth);
     dispatch({ type: ACTIONS.SET_MONTHLY_TOTAL, payload: total });
+  }, [db, state.selectedMonth]);
+
+  const loadTotalMonthlyBudget = useCallback(async () => {
+    const budget = await queries.getTotalMonthlyBudget(db, state.selectedMonth);
+    dispatch({ type: ACTIONS.SET_TOTAL_MONTHLY_BUDGET, payload: budget });
   }, [db, state.selectedMonth]);
 
   const loadCategoryBreakdown = useCallback(async () => {
@@ -143,6 +153,11 @@ export function ExpenseProvider({ children }) {
     await loadBudgets();
   }, [db, state.selectedMonth, loadBudgets]);
 
+  const saveTotalMonthlyBudget = useCallback(async (amount) => {
+    await queries.setTotalMonthlyBudget(db, state.selectedMonth, amount);
+    await loadTotalMonthlyBudget();
+  }, [db, state.selectedMonth, loadTotalMonthlyBudget]);
+
   const removeBudget = useCallback(async (categoryId) => {
     await queries.deleteBudget(db, categoryId, state.selectedMonth);
     await loadBudgets();
@@ -174,6 +189,7 @@ export function ExpenseProvider({ children }) {
         addCategory,
         deleteCategory,
         saveBudget,
+        saveTotalMonthlyBudget,
         removeBudget,
         setSelectedMonth,
         setFilters,

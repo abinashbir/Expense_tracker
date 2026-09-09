@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   SafeAreaView, ScrollView, Switch, Alert, KeyboardAvoidingView,
-  Platform, Animated,
+  Platform, Animated, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -13,6 +13,19 @@ import { getCurrentDate, getCurrentMonth } from '../../utils/formatters';
 import { checkBudgetAndNotify } from '../../utils/notifications';
 import { RECURRENCE_OPTIONS } from '../../utils/constants';
 import CategoryPicker from '../../components/CategoryPicker';
+import { successNotification, errorNotification, lightImpact } from '../../utils/haptics';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const NUM_CONFETTI = 24;
+
+// Pre-generate confetti particle configs
+const CONFETTI_CONFIGS = Array.from({ length: NUM_CONFETTI }, (_, i) => ({
+  color: ['#6C5CE7', '#A78BFA', '#FF6B6B', '#4ECDC4', '#FFEAA7', '#10B981', '#F59E0B', '#45B7D1'][i % 8],
+  left: Math.random() * SCREEN_WIDTH,
+  size: 6 + Math.random() * 6,
+  rotation: Math.random() * 360,
+  delay: Math.random() * 300,
+}));
 
 export default function AddExpenseScreen() {
   const { theme } = useTheme();
@@ -28,7 +41,40 @@ export default function AddExpenseScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Animations
   const successAnim = useRef(new Animated.Value(0)).current;
+  const confettiAnims = useRef(
+    CONFETTI_CONFIGS.map(() => ({
+      progress: new Animated.Value(0),
+    }))
+  ).current;
+
+  // Staggered form entry animations
+  const formAnims = useRef([...Array(6)].map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    const animations = formAnims.map((anim, i) =>
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 400,
+        delay: i * 80,
+        useNativeDriver: true,
+      })
+    );
+    Animated.stagger(0, animations).start();
+  }, []);
+
+  const getFormItemStyle = (index) => ({
+    opacity: formAnims[index],
+    transform: [
+      {
+        translateY: formAnims[index].interpolate({
+          inputRange: [0, 1],
+          outputRange: [24, 0],
+        }),
+      },
+    ],
+  });
 
   const formatDateDisplay = (d) => {
     return d.toLocaleDateString('en-US', {
@@ -49,22 +95,39 @@ export default function AddExpenseScreen() {
   };
 
   const showSuccess = () => {
+    // Toast animation
     successAnim.setValue(0);
     Animated.sequence([
       Animated.timing(successAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.delay(1200),
+      Animated.delay(1800),
       Animated.timing(successAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start();
+
+    // Confetti burst
+    confettiAnims.forEach((anim) => {
+      anim.progress.setValue(0);
+    });
+    const confettiAnimations = confettiAnims.map((anim, i) =>
+      Animated.timing(anim.progress, {
+        toValue: 1,
+        duration: 1200 + Math.random() * 600,
+        delay: CONFETTI_CONFIGS[i].delay,
+        useNativeDriver: true,
+      })
+    );
+    Animated.parallel(confettiAnimations).start();
   };
 
   const handleSave = async () => {
     // Validate
     const parsedAmount = parseFloat(amount);
     if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      errorNotification();
       Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0.');
       return;
     }
     if (!selectedCategory) {
+      errorNotification();
       Alert.alert('Select Category', 'Please select a category for this expense.');
       return;
     }
@@ -85,10 +148,12 @@ export default function AddExpenseScreen() {
       const yearMonth = dateStr.substring(0, 7);
       await checkBudgetAndNotify(db, selectedCategory.id, yearMonth, selectedCategory.name);
 
+      successNotification();
       showSuccess();
       resetForm();
     } catch (e) {
       console.error('Save error:', e);
+      errorNotification();
       Alert.alert('Error', 'Failed to save expense. Please try again.');
     }
   };
@@ -106,151 +171,172 @@ export default function AddExpenseScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <Text style={[styles.pageTitle, { color: theme.text }]}>Add Expense</Text>
-          <Text style={[styles.pageSubtitle, { color: theme.textSecondary }]}>
-            Track where your money goes
-          </Text>
+          <Animated.View style={getFormItemStyle(0)}>
+            <Text style={[styles.pageTitle, { color: theme.text }]}>Add Expense</Text>
+            <Text style={[styles.pageSubtitle, { color: theme.textSecondary }]}>
+              Track where your money goes
+            </Text>
+          </Animated.View>
 
           {/* Amount Input */}
-          <View style={[styles.amountCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.currencySymbol, { color: theme.primary }]}>{currency}</Text>
-            <TextInput
-              style={[styles.amountInput, { color: theme.text }]}
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
-              placeholderTextColor={theme.textTertiary}
-              keyboardType="decimal-pad"
-              autoFocus
-            />
-          </View>
+          <Animated.View style={getFormItemStyle(1)}>
+            <View style={[styles.amountCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.currencySymbol, { color: theme.primary }]}>{currency}</Text>
+              <TextInput
+                style={[styles.amountInput, { color: theme.text }]}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.00"
+                placeholderTextColor={theme.textTertiary}
+                keyboardType="decimal-pad"
+                autoFocus
+              />
+            </View>
+          </Animated.View>
 
           {/* Category */}
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Category</Text>
-          <TouchableOpacity
-            style={[
-              styles.selectField,
-              {
-                backgroundColor: theme.surface,
-                borderColor: selectedCategory ? selectedCategory.color : theme.border,
-              },
-            ]}
-            onPress={() => setShowCategoryPicker(true)}
-          >
-            {selectedCategory ? (
-              <View style={styles.selectedCategory}>
-                <View style={[styles.catIcon, { backgroundColor: selectedCategory.color + '20' }]}>
-                  <Ionicons name={selectedCategory.icon} size={20} color={selectedCategory.color} />
+          <Animated.View style={getFormItemStyle(2)}>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Category</Text>
+            <TouchableOpacity
+              style={[
+                styles.selectField,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: selectedCategory ? selectedCategory.color : theme.border,
+                },
+              ]}
+              onPress={() => {
+                lightImpact();
+                setShowCategoryPicker(true);
+              }}
+            >
+              {selectedCategory ? (
+                <View style={styles.selectedCategory}>
+                  <View style={[styles.catIcon, { backgroundColor: selectedCategory.color + '20' }]}>
+                    <Ionicons name={selectedCategory.icon} size={20} color={selectedCategory.color} />
+                  </View>
+                  <Text style={[styles.selectText, { color: theme.text }]}>{selectedCategory.name}</Text>
                 </View>
-                <Text style={[styles.selectText, { color: theme.text }]}>{selectedCategory.name}</Text>
-              </View>
-            ) : (
-              <Text style={[styles.selectPlaceholder, { color: theme.textTertiary }]}>
-                Select a category
-              </Text>
-            )}
-            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
-          </TouchableOpacity>
+              ) : (
+                <Text style={[styles.selectPlaceholder, { color: theme.textTertiary }]}>
+                  Select a category
+                </Text>
+              )}
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+            </TouchableOpacity>
+          </Animated.View>
 
           {/* Date */}
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Date</Text>
-          <TouchableOpacity
-            style={[styles.selectField, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <View style={styles.selectedCategory}>
-              <View style={[styles.catIcon, { backgroundColor: theme.primaryLight }]}>
-                <Ionicons name="calendar-outline" size={20} color={theme.primary} />
-              </View>
-              <Text style={[styles.selectText, { color: theme.text }]}>
-                {formatDateDisplay(date)}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(Platform.OS === 'ios');
-                if (selectedDate) setDate(selectedDate);
-              }}
-              maximumDate={new Date()}
-              themeVariant={theme === 'dark' ? 'dark' : 'light'}
-            />
-          )}
-
-          {/* Notes */}
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Notes (optional)</Text>
-          <TextInput
-            style={[styles.notesInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="What was this expense for?"
-            placeholderTextColor={theme.textTertiary}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-
-          {/* Recurring */}
-          <View style={[styles.recurringRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={styles.recurringLeft}>
-              <Ionicons name="repeat" size={22} color={theme.primary} />
-              <View style={styles.recurringInfo}>
-                <Text style={[styles.recurringTitle, { color: theme.text }]}>Recurring Expense</Text>
-                <Text style={[styles.recurringSubtitle, { color: theme.textSecondary }]}>
-                  Auto-repeating payment
+          <Animated.View style={getFormItemStyle(3)}>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Date</Text>
+            <TouchableOpacity
+              style={[styles.selectField, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <View style={styles.selectedCategory}>
+                <View style={[styles.catIcon, { backgroundColor: theme.primaryLight }]}>
+                  <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+                </View>
+                <Text style={[styles.selectText, { color: theme.text }]}>
+                  {formatDateDisplay(date)}
                 </Text>
               </View>
-            </View>
-            <Switch
-              value={isRecurring}
-              onValueChange={setIsRecurring}
-              trackColor={{ false: theme.border, true: theme.primaryLight }}
-              thumbColor={isRecurring ? theme.primary : theme.textTertiary}
+              <Ionicons name="chevron-forward" size={20} color={theme.textTertiary} />
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(Platform.OS === 'ios');
+                  if (selectedDate) setDate(selectedDate);
+                }}
+                maximumDate={new Date()}
+                themeVariant={theme === 'dark' ? 'dark' : 'light'}
+              />
+            )}
+          </Animated.View>
+
+          {/* Notes */}
+          <Animated.View style={getFormItemStyle(4)}>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Notes (optional)</Text>
+            <TextInput
+              style={[styles.notesInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="What was this expense for?"
+              placeholderTextColor={theme.textTertiary}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
             />
-          </View>
+          </Animated.View>
 
-          {isRecurring && (
-            <View style={styles.intervalRow}>
-              {RECURRENCE_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.intervalChip,
-                    {
-                      backgroundColor: recurrenceInterval === opt.value ? theme.primaryLight : theme.surface,
-                      borderColor: recurrenceInterval === opt.value ? theme.primary : theme.border,
-                    },
-                  ]}
-                  onPress={() => setRecurrenceInterval(opt.value)}
-                >
-                  <Text
-                    style={[
-                      styles.intervalText,
-                      { color: recurrenceInterval === opt.value ? theme.primary : theme.textSecondary },
-                    ]}
-                  >
-                    {opt.label}
+          {/* Recurring */}
+          <Animated.View style={getFormItemStyle(5)}>
+            <View style={[styles.recurringRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={styles.recurringLeft}>
+                <Ionicons name="repeat" size={22} color={theme.primary} />
+                <View style={styles.recurringInfo}>
+                  <Text style={[styles.recurringTitle, { color: theme.text }]}>Recurring Expense</Text>
+                  <Text style={[styles.recurringSubtitle, { color: theme.textSecondary }]}>
+                    Auto-repeating payment
                   </Text>
-                </TouchableOpacity>
-              ))}
+                </View>
+              </View>
+              <Switch
+                value={isRecurring}
+                onValueChange={(val) => {
+                  lightImpact();
+                  setIsRecurring(val);
+                }}
+                trackColor={{ false: theme.border, true: theme.primaryLight }}
+                thumbColor={isRecurring ? theme.primary : theme.textTertiary}
+              />
             </View>
-          )}
 
-          {/* Save Button */}
-          <TouchableOpacity
-            style={[styles.saveBtn, { backgroundColor: theme.primary }]}
-            onPress={handleSave}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="checkmark-circle-outline" size={22} color="#FFF" />
-            <Text style={styles.saveBtnText}>Save Expense</Text>
-          </TouchableOpacity>
+            {isRecurring && (
+              <View style={styles.intervalRow}>
+                {RECURRENCE_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.intervalChip,
+                      {
+                        backgroundColor: recurrenceInterval === opt.value ? theme.primaryLight : theme.surface,
+                        borderColor: recurrenceInterval === opt.value ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      lightImpact();
+                      setRecurrenceInterval(opt.value);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.intervalText,
+                        { color: recurrenceInterval === opt.value ? theme.primary : theme.textSecondary },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Save Button */}
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+              onPress={handleSave}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkmark-circle-outline" size={22} color="#FFF" />
+              <Text style={styles.saveBtnText}>Save Expense</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -269,6 +355,57 @@ export default function AddExpenseScreen() {
         <Ionicons name="checkmark-circle" size={20} color="#FFF" />
         <Text style={styles.successText}>Expense saved!</Text>
       </Animated.View>
+
+      {/* Confetti particles */}
+      {confettiAnims.map((anim, i) => {
+        const config = CONFETTI_CONFIGS[i];
+        return (
+          <Animated.View
+            key={i}
+            pointerEvents="none"
+            style={[
+              styles.confettiPiece,
+              {
+                left: config.left,
+                width: config.size,
+                height: config.size * 1.5,
+                backgroundColor: config.color,
+                borderRadius: config.size * 0.3,
+                opacity: anim.progress.interpolate({
+                  inputRange: [0, 0.2, 0.8, 1],
+                  outputRange: [0, 1, 1, 0],
+                }),
+                transform: [
+                  {
+                    translateY: anim.progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-20, SCREEN_HEIGHT * 0.6],
+                    }),
+                  },
+                  {
+                    translateX: anim.progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, (Math.random() - 0.5) * 100],
+                    }),
+                  },
+                  {
+                    rotate: anim.progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [`${config.rotation}deg`, `${config.rotation + 360 + Math.random() * 360}deg`],
+                    }),
+                  },
+                  {
+                    scale: anim.progress.interpolate({
+                      inputRange: [0, 0.3, 0.7, 1],
+                      outputRange: [0, 1.2, 1, 0.6],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+        );
+      })}
 
       <CategoryPicker
         visible={showCategoryPicker}
@@ -446,5 +583,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '600',
+  },
+  confettiPiece: {
+    position: 'absolute',
+    top: 40,
   },
 });

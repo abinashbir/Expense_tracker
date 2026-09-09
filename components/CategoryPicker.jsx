@@ -74,8 +74,33 @@ export default function CategoryPicker({ visible, onClose, onSelect, selectedId 
           {!showAddForm ? (
             <>
               <FlatList
-                data={categories}
-                renderItem={renderCategory}
+                data={[...categories, { id: '__add_new__', isAddNew: true }]}
+                renderItem={({ item }) => {
+                  if (item.isAddNew) {
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.categoryItem,
+                          {
+                            backgroundColor: theme.surfaceElevated,
+                            borderColor: theme.primary,
+                            borderStyle: 'dashed',
+                          },
+                        ]}
+                        onPress={() => setShowAddForm(true)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.categoryIcon, { backgroundColor: theme.primaryLight }]}>
+                          <Ionicons name="add" size={26} color={theme.primary} />
+                        </View>
+                        <Text style={[styles.categoryName, { color: theme.primary, fontWeight: '700' }]} numberOfLines={1}>
+                          + Add New
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }
+                  return renderCategory({ item });
+                }}
                 keyExtractor={(item) => item.id.toString()}
                 numColumns={3}
                 contentContainerStyle={styles.grid}
@@ -89,7 +114,7 @@ export default function CategoryPicker({ visible, onClose, onSelect, selectedId 
                 onPress={() => setShowAddForm(true)}
               >
                 <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
-                <Text style={[styles.addBtnText, { color: theme.primary }]}>Add Custom Category</Text>
+                <Text style={[styles.addBtnText, { color: theme.primary }]}>Create Custom Category</Text>
               </TouchableOpacity>
             </>
           ) : (

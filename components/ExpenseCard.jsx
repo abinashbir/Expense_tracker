@@ -1,77 +1,264 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet,
+  Animated, PanResponder, Dimensions,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useSettings } from '../context/SettingsContext';
 import { formatCurrency, getRelativeDate } from '../utils/formatters';
+import { heavyImpact, mediumImpact } from '../utils/haptics';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SWIPE_THRESHOLD = -80;
+const DELETE_THRESHOLD = -160;
 
 export default function ExpenseCard({ expense, onPress, onDelete }) {
   const { theme } = useTheme();
   const { currency } = useSettings();
 
+  const translateX = useRef(new Animated.Value(0)).current;
+  const itemHeight = useRef(new Animated.Value(1)).current;
+  const hasTriggeredHaptic = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only respond to horizontal swipes (left)
+        return (
+          Math.abs(gestureState.dx) > 10 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
+          gestureState.dx < 0
+        );
+      },
+      onPanResponderGrant: () => {
+        hasTriggeredHaptic.current = false;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx < 0) {
+          translateX.setValue(gestureState.dx);
+
+          // Trigger haptic when crossing the delete threshold
+          if (gestureState.dx <= DELETE_THRESHOLD && !hasTriggeredHaptic.current) {
+            hasTriggeredHaptic.current = true;
+            heavyImpact();
+          } else if (gestureState.dx > DELETE_THRESHOLD && hasTriggeredHaptic.current) {
+            hasTriggeredHaptic.current = false;
+          }
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx <= DELETE_THRESHOLD) {
+          // Swiped far enough — animate away and delete
+          Animated.parallel([
+            Animated.timing(translateX, {
+              toValue: -SCREEN_WIDTH,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+            Animated.timing(itemHeight, {
+              toValue: 0,
+              duration: 250,
+              delay: 150,
+              useNativeDriver: false,
+            }),
+          ]).start(() => {
+            if (onDelete) onDelete(expense.id);
+          });
+        } else if (gestureState.dx <= SWIPE_THRESHOLD) {
+          // Partial swipe — snap to reveal delete button
+          mediumImpact();
+          Animated.spring(translateX, {
+            toValue: SWIPE_THRESHOLD,
+            useNativeDriver: true,
+            bounciness: 8,
+          }).start();
+        } else {
+          // Snap back
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 8,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 8,
+        }).start();
+      },
+    })
+  ).current;
+
+  const handleDeletePress = () => {
+    heavyImpact();
+    Animated.parallel([
+      Animated.timing(translateX, {
+        toValue: -SCREEN_WIDTH,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(itemHeight, {
+        toValue: 0,
+        duration: 250,
+        delay: 150,
+        useNativeDriver: false,
+      }),
+    ]).start(() => {
+      if (onDelete) onDelete(expense.id);
+    });
+  };
+
+  // Interpolate delete background opacity
+  const deleteOpacity = translateX.interpolate({
+    inputRange: [DELETE_THRESHOLD, SWIPE_THRESHOLD, 0],
+    outputRange: [1, 0.85, 0],
+    extrapolate: 'clamp',
+  });
+
+  const deleteScale = translateX.interpolate({
+    inputRange: [DELETE_THRESHOLD, SWIPE_THRESHOLD, 0],
+    outputRange: [1.15, 1, 0.6],
+    extrapolate: 'clamp',
+  });
+
   return (
-    <TouchableOpacity
-      style={[styles.container, { backgroundColor: theme.surface, borderColor: theme.border }]}
-      onPress={onPress}
-      activeOpacity={0.7}
+    <Animated.View
+      style={[
+        styles.wrapper,
+        {
+          maxHeight: itemHeight.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 200],
+          }),
+          opacity: itemHeight,
+          marginBottom: itemHeight.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 8],
+          }),
+        },
+      ]}
     >
-      <View style={[styles.iconContainer, { backgroundColor: expense.category_color + '20' }]}>
-        <Ionicons name={expense.category_icon} size={22} color={expense.category_color} />
-      </View>
-
-      <View style={styles.details}>
-        <Text style={[styles.category, { color: theme.text }]} numberOfLines={1}>
-          {expense.category_name}
-        </Text>
-        <View style={styles.metaRow}>
-          <Text style={[styles.date, { color: theme.textSecondary }]}>
-            {getRelativeDate(expense.date)}
-          </Text>
-          {expense.is_recurring === 1 && (
-            <View style={[styles.recurringBadge, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="repeat" size={10} color={theme.primary} />
-              <Text style={[styles.recurringText, { color: theme.primary }]}>
-                {expense.recurrence_interval}
-              </Text>
-            </View>
-          )}
-        </View>
-        {expense.notes ? (
-          <Text style={[styles.notes, { color: theme.textTertiary }]} numberOfLines={1}>
-            {expense.notes}
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={styles.amountContainer}>
-        <Text style={[styles.amount, { color: theme.text }]}>
-          {formatCurrency(expense.amount, currency)}
-        </Text>
-      </View>
-
-      {onDelete && (
+      {/* Delete action behind the card */}
+      <Animated.View
+        style={[
+          styles.deleteAction,
+          {
+            backgroundColor: theme.danger,
+            opacity: deleteOpacity,
+          },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.deleteBtn, { backgroundColor: theme.dangerLight }]}
-          onPress={() => onDelete(expense.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.deleteActionInner}
+          onPress={handleDeletePress}
+          activeOpacity={0.8}
         >
-          <Ionicons name="trash-outline" size={16} color={theme.danger} />
+          <Animated.View style={{ transform: [{ scale: deleteScale }] }}>
+            <Ionicons name="trash" size={24} color="#FFF" />
+          </Animated.View>
+          <Text style={styles.deleteActionText}>Delete</Text>
         </TouchableOpacity>
-      )}
-    </TouchableOpacity>
+      </Animated.View>
+
+      {/* Foreground card */}
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            transform: [{ translateX }],
+          },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <TouchableOpacity
+          style={styles.cardContent}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: expense.category_color + '20' }]}>
+            <Ionicons name={expense.category_icon} size={22} color={expense.category_color} />
+          </View>
+
+          <View style={styles.details}>
+            <Text style={[styles.category, { color: theme.text }]} numberOfLines={1}>
+              {expense.category_name}
+            </Text>
+            <View style={styles.metaRow}>
+              <Text style={[styles.date, { color: theme.textSecondary }]}>
+                {getRelativeDate(expense.date)}
+              </Text>
+              {expense.is_recurring === 1 && (
+                <View style={[styles.recurringBadge, { backgroundColor: theme.primaryLight }]}>
+                  <Ionicons name="repeat" size={10} color={theme.primary} />
+                  <Text style={[styles.recurringText, { color: theme.primary }]}>
+                    {expense.recurrence_interval}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {expense.notes ? (
+              <Text style={[styles.notes, { color: theme.textTertiary }]} numberOfLines={1}>
+                {expense.notes}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.amountContainer}>
+            <Text style={[styles.amount, { color: theme.text }]}>
+              {formatCurrency(expense.amount, currency)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginHorizontal: 16,
+    overflow: 'hidden',
+  },
+  deleteAction: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  deleteActionInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 24,
+    width: 100,
+    height: '100%',
+    position: 'absolute',
+    right: 0,
+  },
+  deleteActionText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+  },
   container: {
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 14,
-    borderWidth: 1,
   },
   iconContainer: {
     width: 44,
@@ -122,10 +309,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
-  },
-  deleteBtn: {
-    marginLeft: 10,
-    padding: 8,
-    borderRadius: 8,
   },
 });
