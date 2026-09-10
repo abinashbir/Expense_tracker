@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   list: {
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   monthSelector: {
     flexDirection: 'row',
