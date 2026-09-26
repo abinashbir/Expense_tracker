@@ -39,6 +39,9 @@ yarn-error.*
 # APK builds (published via GitHub Releases)
 *.apk
 
+# Gradle local cache
+.gradle-user-home/
+
 # generated native folders
 /ios
 /android
