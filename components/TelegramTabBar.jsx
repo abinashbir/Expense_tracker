@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 
 const TAB_CONFIG = {
@@ -13,17 +12,16 @@ const TAB_CONFIG = {
 
 const TelegramTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
-  const { isDark } = useTheme();
+  const { theme, isDark } = useTheme();
 
   // Floating clearance above Android / iOS gesture navigation bar
   const bottomOffset = Math.max(insets.bottom, 12) + 8;
 
-  // Telegram color palette (adapted gracefully for dark & light mode)
-  const dockBg = isDark ? '#17212B' : '#FFFFFF';
-  const dockBorder = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
-  const activePillBg = isDark ? 'rgba(74, 159, 255, 0.2)' : 'rgba(51, 144, 236, 0.15)';
-  const activeColor = isDark ? '#4A9FFF' : '#3390EC';
-  const inactiveColor = isDark ? '#FFFFFF' : '#6B7280';
+  const dockBg = theme.tabBar;
+  const dockBorder = theme.tabBarBorder;
+  const activePillBg = theme.primary;
+  const activeColor = theme.primaryText;
+  const inactiveColor = theme.textSecondary;
 
   return (
     <View style={[styles.dockContainer, { bottom: bottomOffset }]}>
@@ -33,6 +31,7 @@ const TelegramTabBar = ({ state, descriptors, navigation }) => {
           {
             backgroundColor: dockBg,
             borderColor: dockBorder,
+            shadowOpacity: isDark ? 0.35 : 0.12,
           },
         ]}
       >
@@ -146,14 +145,19 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    alignSelf: 'center',
+    minWidth: 88,
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 999,
   },
-  tabItemActive: {},
+  tabItemActive: {
+    borderRadius: 999,
+  },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     marginTop: 2,
+    letterSpacing: 0.2,
   },
 });
 

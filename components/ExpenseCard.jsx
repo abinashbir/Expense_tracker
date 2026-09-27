@@ -181,8 +181,8 @@ export default function ExpenseCard({ expense, onPress, onDelete }) {
           onPress={onPress}
           activeOpacity={0.7}
         >
-          <View style={[styles.iconContainer, { backgroundColor: expense.category_color + '20' }]}>
-            <Ionicons name={expense.category_icon} size={22} color={expense.category_color} />
+          <View style={[styles.iconContainer, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+            <Ionicons name={expense.category_icon} size={20} color={theme.text} />
           </View>
 
           <View style={styles.details}>
@@ -194,9 +194,9 @@ export default function ExpenseCard({ expense, onPress, onDelete }) {
                 {getRelativeDate(expense.date)}
               </Text>
               {expense.is_recurring === 1 && (
-                <View style={[styles.recurringBadge, { backgroundColor: theme.primaryLight }]}>
-                  <Ionicons name="repeat" size={10} color={theme.primary} />
-                  <Text style={[styles.recurringText, { color: theme.primary }]}>
+                <View style={[styles.recurringBadge, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+                  <Ionicons name="repeat" size={10} color={theme.textSecondary} />
+                  <Text style={[styles.recurringText, { color: theme.textSecondary }]}>
                     {expense.recurrence_interval}
                   </Text>
                 </View>

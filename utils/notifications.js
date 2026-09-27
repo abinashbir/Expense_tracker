@@ -35,11 +35,30 @@ export async function requestNotificationPermissions() {
       name: 'Budget Alerts',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#6C5CE7',
+      lightColor: '#FFFFFF',
     });
   }
 
   return true;
+}
+
+export async function scheduleDailyReminder() {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const existing = scheduled.filter((notification) => notification.content.data?.type === 'daily-reminder');
+
+  await Promise.all(
+    existing.map((notification) => Notifications.cancelScheduledNotificationAsync(notification.identifier))
+  );
+
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Log today\'s spending',
+      body: 'Keep your expense tracker up to date in a few seconds.',
+      data: { type: 'daily-reminder' },
+      ...(Platform.OS === 'android' && { channelId: 'budget-alerts' }),
+    },
+    trigger: { hour: 20, minute: 0, repeats: true },
+  });
 }
 
 /**

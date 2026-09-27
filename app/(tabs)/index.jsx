@@ -1,26 +1,35 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, RefreshControl, Animated, Modal, TextInput,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../../context/ThemeContext';
-import { useSettings } from '../../context/SettingsContext';
-import { useExpenses } from '../../context/ExpenseContext';
-import { formatCurrency, getMonthName, getPreviousMonth, getNextMonth, getCurrentMonth } from '../../utils/formatters';
-import ExpenseCard from '../../components/ExpenseCard';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    FlatList,
+    Modal,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import BudgetProgressBar from '../../components/BudgetProgressBar';
-import FilterSheet from '../../components/FilterSheet';
 import EmptyState from '../../components/EmptyState';
+import ExpenseCard from '../../components/ExpenseCard';
+import FilterSheet from '../../components/FilterSheet';
+import { useExpenses } from '../../context/ExpenseContext';
+import { useSettings } from '../../context/SettingsContext';
+import { useTheme } from '../../context/ThemeContext';
+import { formatCurrency, getCurrentMonth, getMonthName, getNextMonth, getPreviousMonth } from '../../utils/formatters';
 import { lightImpact, successNotification } from '../../utils/haptics';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { currency } = useSettings();
   const {
-    expenses, budgets, monthlyTotal, totalMonthlyBudget,
+    expenses, budgets, monthlyTotal, monthlyIncome, totalMonthlyBudget,
     selectedMonth, setSelectedMonth, loading, filters, setFilters,
     clearFilters, deleteExpense, refreshData, saveTotalMonthlyBudget,
   } = useExpenses();
@@ -42,6 +51,7 @@ export default function HomeScreen() {
   const budgetPercentage = hasBudget ? Math.min((monthlyTotal / totalMonthlyBudget) * 100, 100) : 0;
   const remainingBudget = totalMonthlyBudget - monthlyTotal;
   const isOverBudget = hasBudget && remainingBudget < 0;
+  const monthlyBalance = monthlyIncome - monthlyTotal;
 
   // Animate total card on mount / month change
   useEffect(() => {
@@ -91,9 +101,9 @@ export default function HomeScreen() {
   };
 
   const getProgressBarColor = () => {
-    if (isOverBudget) return '#FF4757';
-    if (budgetPercentage >= 85) return '#FFA502';
-    return '#2ED573';
+    if (isOverBudget) return theme.danger;
+    if (budgetPercentage >= 85) return '#CCCCCC';
+    return '#FFFFFF';
   };
 
   const renderHeader = () => (
@@ -118,7 +128,7 @@ export default function HomeScreen() {
             {getMonthName(selectedMonth)}
           </Text>
           {!isCurrentMonth && (
-            <Text style={[styles.todayHint, { color: theme.primary }]}>Tap for current</Text>
+            <Text style={[styles.todayHint, { color: theme.textSecondary }]}>Tap for current</Text>
           )}
         </TouchableOpacity>
 
@@ -135,7 +145,9 @@ export default function HomeScreen() {
         style={[
           styles.totalCard,
           {
-            backgroundColor: theme.primary,
+            backgroundColor: theme.primaryDark,
+            borderColor: theme.primary,
+            borderWidth: 1,
             transform: [{ scale: totalCardScale }],
             opacity: totalCardOpacity,
           },
@@ -146,6 +158,12 @@ export default function HomeScreen() {
             <View>
               <Text style={styles.totalLabel}>Total Spent</Text>
               <Text style={styles.totalAmount}>{formatCurrency(monthlyTotal, currency)}</Text>
+              <View style={styles.balanceRow}>
+                <Text style={styles.balanceLabel}>Balance</Text>
+                <Text style={[styles.balanceAmount, { color: monthlyBalance >= 0 ? '#A3A3A3' : '#D4D4D4' }]}>
+                  {formatCurrency(monthlyBalance, currency)}
+                </Text>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -185,7 +203,7 @@ export default function HomeScreen() {
                 <Text
                   style={[
                     styles.budgetInfoText,
-                    { fontWeight: '700', color: isOverBudget ? '#FF6B6B' : 'rgba(255,255,255,0.9)' },
+                    { fontWeight: '700', color: isOverBudget ? theme.danger : 'rgba(255,255,255,0.9)' },
                   ]}
                 >
                   {isOverBudget
@@ -212,11 +230,6 @@ export default function HomeScreen() {
             {expenses.length} transaction{expenses.length !== 1 ? 's' : ''} in {getMonthName(selectedMonth)}
           </Text>
         </View>
-
-        <View style={styles.totalCardDecor}>
-          <View style={[styles.decorCircle, styles.decorCircle1]} />
-          <View style={[styles.decorCircle, styles.decorCircle2]} />
-        </View>
       </Animated.View>
 
       {/* Category Budget Tracking */}
@@ -230,8 +243,8 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/settings')}
               style={styles.manageBudgetsBtn}
             >
-              <Text style={[styles.manageBudgetsText, { color: theme.primary }]}>Manage</Text>
-              <Ionicons name="chevron-forward" size={14} color={theme.primary} />
+              <Text style={[styles.manageBudgetsText, { color: theme.textSecondary }]}>Manage</Text>
+              <Ionicons name="chevron-forward" size={14} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.budgetScroll}>
@@ -255,13 +268,22 @@ export default function HomeScreen() {
           style={[
             styles.filterBtn,
             {
-              backgroundColor: hasFilters ? theme.primaryLight : theme.surfaceElevated,
+              backgroundColor: hasFilters ? theme.primary : theme.surfaceElevated,
               borderColor: hasFilters ? theme.primary : theme.border,
             },
           ]}
         >
-          <Ionicons name="filter" size={16} color={hasFilters ? theme.primary : theme.textSecondary} />
-          <Text style={[styles.filterBtnText, { color: hasFilters ? theme.primary : theme.textSecondary }]}>
+          <Ionicons
+            name="filter"
+            size={16}
+            color={hasFilters ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary}
+          />
+          <Text
+            style={[
+              styles.filterBtnText,
+              { color: hasFilters ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary },
+            ]}
+          >
             {hasFilters ? 'Filtered' : 'Filter'}
           </Text>
         </TouchableOpacity>
@@ -363,7 +385,7 @@ export default function HomeScreen() {
                   style={[styles.modalSaveBtn, { backgroundColor: theme.primary }]}
                   onPress={handleSaveBudget}
                 >
-                  <Text style={styles.modalSaveText}>Save Budget</Text>
+                  <Text style={[styles.modalSaveText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Save Budget</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -486,6 +508,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
     letterSpacing: -1,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  balanceLabel: {
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  balanceAmount: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   budgetBadge: {
     flexDirection: 'row',

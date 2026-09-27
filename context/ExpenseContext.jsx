@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
+import { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
 import * as queries from '../db/queries';
 import { getCurrentMonth } from '../utils/formatters';
 
@@ -9,6 +9,7 @@ const ACTIONS = {
   SET_CATEGORIES: 'SET_CATEGORIES',
   SET_BUDGETS: 'SET_BUDGETS',
   SET_MONTHLY_TOTAL: 'SET_MONTHLY_TOTAL',
+  SET_MONTHLY_INCOME: 'SET_MONTHLY_INCOME',
   SET_TOTAL_MONTHLY_BUDGET: 'SET_TOTAL_MONTHLY_BUDGET',
   SET_CATEGORY_BREAKDOWN: 'SET_CATEGORY_BREAKDOWN',
   SET_SELECTED_MONTH: 'SET_SELECTED_MONTH',
@@ -22,6 +23,7 @@ const initialState = {
   categories: [],
   budgets: [],
   monthlyTotal: 0,
+  monthlyIncome: 0,
   totalMonthlyBudget: 0,
   categoryBreakdown: [],
   selectedMonth: getCurrentMonth(),
@@ -39,6 +41,8 @@ function reducer(state, action) {
       return { ...state, budgets: action.payload };
     case ACTIONS.SET_MONTHLY_TOTAL:
       return { ...state, monthlyTotal: action.payload };
+    case ACTIONS.SET_MONTHLY_INCOME:
+      return { ...state, monthlyIncome: action.payload };
     case ACTIONS.SET_TOTAL_MONTHLY_BUDGET:
       return { ...state, totalMonthlyBudget: action.payload };
     case ACTIONS.SET_CATEGORY_BREAKDOWN:
@@ -75,6 +79,7 @@ export function ExpenseProvider({ children }) {
         loadCategories(),
         loadBudgets(),
         loadMonthlyTotal(),
+        loadMonthlyIncome(),
         loadTotalMonthlyBudget(),
         loadCategoryBreakdown(),
       ]);
@@ -109,6 +114,11 @@ export function ExpenseProvider({ children }) {
     dispatch({ type: ACTIONS.SET_MONTHLY_TOTAL, payload: total });
   }, [db, state.selectedMonth]);
 
+  const loadMonthlyIncome = useCallback(async () => {
+    const income = await queries.getMonthlyIncome(db, state.selectedMonth);
+    dispatch({ type: ACTIONS.SET_MONTHLY_INCOME, payload: income });
+  }, [db, state.selectedMonth]);
+
   const loadTotalMonthlyBudget = useCallback(async () => {
     const budget = await queries.getTotalMonthlyBudget(db, state.selectedMonth);
     dispatch({ type: ACTIONS.SET_TOTAL_MONTHLY_BUDGET, payload: budget });
@@ -122,6 +132,12 @@ export function ExpenseProvider({ children }) {
   // CRUD Actions
   const addExpense = useCallback(async (expense) => {
     const id = await queries.addExpense(db, expense);
+    await loadAllData();
+    return id;
+  }, [db, loadAllData]);
+
+  const addIncome = useCallback(async (income) => {
+    const id = await queries.addIncome(db, income);
     await loadAllData();
     return id;
   }, [db, loadAllData]);
@@ -184,6 +200,7 @@ export function ExpenseProvider({ children }) {
       value={{
         ...state,
         addExpense,
+        addIncome,
         updateExpense,
         deleteExpense,
         addCategory,

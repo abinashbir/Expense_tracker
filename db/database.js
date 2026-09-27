@@ -1,6 +1,6 @@
 import { DEFAULT_CATEGORIES } from '../utils/constants';
 
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 5;
 
 /**
  * Initialize and migrate the database schema.
@@ -44,6 +44,17 @@ export async function migrateDbIfNeeded(db) {
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now')),
         FOREIGN KEY (category_id) REFERENCES categories(id)
+      );
+    `);
+
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS incomes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        source TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now'))
       );
     `);
 
@@ -99,7 +110,54 @@ export async function migrateDbIfNeeded(db) {
     currentVersion = 1;
   }
 
-  // Future migrations go here (if currentVersion === 1) { ... currentVersion = 2; }
+  if (currentVersion === 1) {
+    // Migration 2: Update default categories to refined monochrome shades
+    for (const cat of DEFAULT_CATEGORIES) {
+      await db.runAsync(
+        'UPDATE categories SET color = ?, icon = ? WHERE name = ? AND is_default = 1',
+        [cat.color, cat.icon, cat.name]
+      );
+    }
+    currentVersion = 2;
+  }
+
+  if (currentVersion === 2) {
+    // Migration 3: Give default categories distinct solid colors
+    for (const cat of DEFAULT_CATEGORIES) {
+      await db.runAsync(
+        'UPDATE categories SET color = ? WHERE name = ? AND is_default = 1',
+        [cat.color, cat.name]
+      );
+    }
+    currentVersion = 3;
+  }
+
+  if (currentVersion === 3) {
+    // Migration 4: Add income tracking
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS incomes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        source TEXT DEFAULT '',
+        notes TEXT DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_incomes_date ON incomes(date);
+    `);
+    currentVersion = 4;
+  }
+
+  if (currentVersion === 4) {
+    // Migration 5: Replace the old teal category palette
+    for (const cat of DEFAULT_CATEGORIES) {
+      await db.runAsync(
+        'UPDATE categories SET color = ? WHERE name = ? AND is_default = 1',
+        [cat.color, cat.name]
+      );
+    }
+    currentVersion = 5;
+  }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }

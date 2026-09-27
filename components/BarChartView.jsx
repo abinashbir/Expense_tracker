@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
-import { useTheme } from '../context/ThemeContext';
 import { useSettings } from '../context/SettingsContext';
+import { useTheme } from '../context/ThemeContext';
+import { CHART_COLORS } from '../utils/constants';
 import { formatCurrencyCompact } from '../utils/formatters';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -22,8 +22,7 @@ export default function BarChartView({ data, labels, title }) {
   const barData = data.map((item, index) => ({
     value: item.value || item.total || 0,
     label: labels ? labels[index] : item.label || '',
-    frontColor: theme.primary,
-    gradientColor: theme.primaryDark,
+    frontColor: CHART_COLORS[index % CHART_COLORS.length],
     topLabelComponent: () => (
       <Text style={[styles.barLabel, { color: theme.textSecondary }]}>
         {formatCurrencyCompact(item.value || item.total || 0, currency)}
@@ -44,7 +43,6 @@ export default function BarChartView({ data, labels, title }) {
           barWidth={SCREEN_WIDTH > 400 ? 30 : 24}
           spacing={SCREEN_WIDTH > 400 ? 20 : 14}
           roundedTop
-          roundedBottom
           noOfSections={4}
           maxValue={maxValue * 1.2}
           yAxisThickness={0}
@@ -54,11 +52,9 @@ export default function BarChartView({ data, labels, title }) {
           xAxisLabelTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
           hideRules
           isAnimated
-          animationDuration={600}
-          barBorderRadius={6}
-          frontColor={theme.primary}
-          gradientColor={theme.primaryLight}
-          showGradient
+          animationDuration={500}
+          barBorderRadius={4}
+          showGradient={false}
           formatYLabel={(val) => formatCurrencyCompact(Number(val), currency)}
         />
       </View>

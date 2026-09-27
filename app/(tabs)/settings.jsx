@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, Switch, Alert, TextInput, Modal,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useTheme } from '../../context/ThemeContext';
-import { useSettings } from '../../context/SettingsContext';
+import { useState } from 'react';
+import {
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../../context/ExpenseContext';
-import { CURRENCIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../../utils/constants';
-import { formatCurrency, getCurrentMonth } from '../../utils/formatters';
+import { useSettings } from '../../context/SettingsContext';
+import { useTheme } from '../../context/ThemeContext';
+import { exportBackup, restoreBackup } from '../../utils/backup';
+import { CATEGORY_COLORS, CATEGORY_ICONS, CURRENCIES } from '../../utils/constants';
 import { exportCSV } from '../../utils/csvExport';
-import { exportBackup } from '../../utils/backup';
-import { requestNotificationPermissions } from '../../utils/notifications';
+import { formatCurrency } from '../../utils/formatters';
+import { requestNotificationPermissions, scheduleDailyReminder } from '../../utils/notifications';
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
@@ -20,7 +30,7 @@ export default function SettingsScreen() {
   const { currency, setCurrency } = useSettings();
   const {
     categories, budgets, addCategory, deleteCategory,
-    saveBudget, removeBudget, selectedMonth,
+    saveBudget, removeBudget, selectedMonth, refreshData,
   } = useExpenses();
 
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
@@ -48,6 +58,36 @@ export default function SettingsScreen() {
       await exportBackup(db);
     } catch (e) {
       Alert.alert('Backup Failed', e.message);
+    }
+  };
+
+  const handleRestoreBackup = () => {
+    Alert.alert(
+      'Restore Backup',
+      'This will replace all current expenses, categories, budgets, and settings. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restore', style: 'destructive', onPress: restoreBackupFile },
+      ]
+    );
+  };
+
+  const restoreBackupFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const jsonString = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      await restoreBackup(db, jsonString);
+      await refreshData();
+      Alert.alert('Restore Complete', 'Your backup data has been restored.');
+    } catch (e) {
+      console.error('Restore failed:', e);
+      Alert.alert('Restore Failed', e.message || 'The selected backup could not be restored.');
     }
   };
 
@@ -101,7 +141,18 @@ export default function SettingsScreen() {
     );
   };
 
-  const SettingsRow = ({ icon, iconColor, title, subtitle, right, onPress, last }) => (
+  const handleDailyReminder = async () => {
+    const granted = await requestNotificationPermissions();
+    if (!granted) {
+      Alert.alert('Not Enabled', 'Please enable notifications in your device settings.');
+      return;
+    }
+
+    await scheduleDailyReminder();
+    Alert.alert('Reminder Enabled', 'You will receive a daily reminder at 8:00 PM.');
+  };
+
+  const SettingsRow = ({ icon, title, subtitle, right, onPress, last }) => (
     <TouchableOpacity
       style={[
         styles.settingsRow,
@@ -111,14 +162,14 @@ export default function SettingsScreen() {
       disabled={!onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
-      <View style={[styles.settingsIconWrap, { backgroundColor: (iconColor || theme.primary) + '18' }]}>
-        <Ionicons name={icon} size={20} color={iconColor || theme.primary} />
+      <View style={[styles.settingsIconWrap, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+        <Ionicons name={icon} size={18} color={theme.text} />
       </View>
       <View style={styles.settingsInfo}>
         <Text style={[styles.settingsTitle, { color: theme.text }]}>{title}</Text>
         {subtitle && <Text style={[styles.settingsSubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>}
       </View>
-      {right || (onPress && <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />)}
+      {right || (onPress && <Ionicons name="chevron-forward" size={16} color={theme.textTertiary} />)}
     </TouchableOpacity>
   );
 
@@ -132,15 +183,14 @@ export default function SettingsScreen() {
         <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SettingsRow
             icon="moon"
-            iconColor="#6C5CE7"
             title="Dark Mode"
             subtitle={mode === 'system' ? 'Following system' : isDark ? 'On' : 'Off'}
             right={
               <Switch
                 value={isDark}
                 onValueChange={toggleTheme}
-                trackColor={{ false: theme.border, true: theme.primaryLight }}
-                thumbColor={isDark ? theme.primary : theme.textTertiary}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={isDark ? (isDark ? '#000000' : '#FFFFFF') : theme.textTertiary}
               />
             }
             last
@@ -152,17 +202,21 @@ export default function SettingsScreen() {
         <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SettingsRow
             icon="cash"
-            iconColor="#10B981"
             title="Currency"
             subtitle={CURRENCIES.find(c => c.symbol === currency)?.name || 'Indian Rupee'}
             onPress={() => setShowCurrencyPicker(true)}
           />
           <SettingsRow
             icon="notifications"
-            iconColor="#F59E0B"
             title="Budget Notifications"
             subtitle="Get alerts when nearing limits"
             onPress={handleNotificationPermission}
+          />
+          <SettingsRow
+            icon="alarm"
+            title="Daily Reminder"
+            subtitle="Remind me to log spending at 8:00 PM"
+            onPress={handleDailyReminder}
             last
           />
         </View>
@@ -172,31 +226,33 @@ export default function SettingsScreen() {
         <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SettingsRow
             icon="grid"
-            iconColor="#4ECDC4"
             title="Manage Categories"
             subtitle={`${categories.length} categories`}
             onPress={() => setShowCategoryManager(true)}
           />
           <SettingsRow
             icon="wallet"
-            iconColor="#FF6B6B"
             title="Monthly Budgets"
             subtitle={`${budgets.length} budgets set`}
             onPress={() => setShowBudgetManager(true)}
           />
           <SettingsRow
             icon="download-outline"
-            iconColor="#45B7D1"
             title="Export as CSV"
             subtitle="Share your expense data"
             onPress={handleExportCSV}
           />
           <SettingsRow
             icon="cloud-upload-outline"
-            iconColor="#96CEB4"
             title="Backup Data"
             subtitle="Export as JSON file"
             onPress={handleExportBackup}
+          />
+          <SettingsRow
+            icon="cloud-download-outline"
+            title="Restore Data"
+            subtitle="Import a JSON backup"
+            onPress={handleRestoreBackup}
             last
           />
         </View>
@@ -206,9 +262,8 @@ export default function SettingsScreen() {
         <View style={[styles.section, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <SettingsRow
             icon="information-circle"
-            iconColor="#888"
             title="Version"
-            subtitle="1.0.0"
+            subtitle="1.0.1"
             last
           />
         </View>
@@ -235,18 +290,18 @@ export default function SettingsScreen() {
                   style={[
                     styles.currencyItem,
                     {
-                      backgroundColor: currency === c.symbol ? theme.primaryLight : 'transparent',
+                      backgroundColor: currency === c.symbol ? (isDark ? '#262626' : '#F0F0F0') : 'transparent',
                       borderBottomColor: theme.borderLight,
                     },
                   ]}
                   onPress={() => { setCurrency(c.symbol); setShowCurrencyPicker(false); }}
                 >
-                  <Text style={[styles.currencySymbol, { color: theme.primary }]}>{c.symbol}</Text>
+                  <Text style={[styles.currencySymbol, { color: theme.text }]}>{c.symbol}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.currencyName, { color: theme.text }]}>{c.name}</Text>
                     <Text style={[styles.currencyCode, { color: theme.textSecondary }]}>{c.code}</Text>
                   </View>
-                  {currency === c.symbol && <Ionicons name="checkmark-circle" size={22} color={theme.primary} />}
+                  {currency === c.symbol && <Ionicons name="checkmark-circle" size={20} color={theme.text} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -272,8 +327,8 @@ export default function SettingsScreen() {
                     key={cat.id}
                     style={[styles.catManagerItem, { borderBottomColor: theme.borderLight }]}
                   >
-                    <View style={[styles.catManagerIcon, { backgroundColor: cat.color + '20' }]}>
-                      <Ionicons name={cat.icon} size={20} color={cat.color} />
+                    <View style={[styles.catManagerIcon, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+                      <Ionicons name={cat.icon} size={18} color={theme.text} />
                     </View>
                     <Text style={[styles.catManagerName, { color: theme.text }]}>{cat.name}</Text>
                     {cat.is_default ? (
@@ -286,11 +341,11 @@ export default function SettingsScreen() {
                   </View>
                 ))}
                 <TouchableOpacity
-                  style={[styles.addCatBtn, { backgroundColor: theme.primaryLight }]}
+                  style={[styles.addCatBtn, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}
                   onPress={() => setShowAddCategory(true)}
                 >
-                  <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
-                  <Text style={[styles.addCatBtnText, { color: theme.primary }]}>Add Category</Text>
+                  <Ionicons name="add-circle-outline" size={20} color={theme.text} />
+                  <Text style={[styles.addCatBtnText, { color: theme.text, fontWeight: '600' }]}>Add Category</Text>
                 </TouchableOpacity>
               </ScrollView>
             ) : (
@@ -310,12 +365,12 @@ export default function SettingsScreen() {
                     <TouchableOpacity
                       key={icon}
                       style={[styles.pickerItem, {
-                        backgroundColor: newCatIcon === icon ? newCatColor + '25' : theme.surfaceElevated,
-                        borderColor: newCatIcon === icon ? newCatColor : theme.border,
+                        backgroundColor: newCatIcon === icon ? theme.primary : theme.surfaceElevated,
+                        borderColor: newCatIcon === icon ? theme.primary : theme.border,
                       }]}
                       onPress={() => setNewCatIcon(icon)}
                     >
-                      <Ionicons name={icon} size={20} color={newCatIcon === icon ? newCatColor : theme.textSecondary} />
+                      <Ionicons name={icon} size={20} color={newCatIcon === icon ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -343,7 +398,7 @@ export default function SettingsScreen() {
                     onPress={handleAddCategory}
                     disabled={!newCatName.trim()}
                   >
-                    <Text style={styles.formSaveText}>Add</Text>
+                    <Text style={[styles.formSaveText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Add</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -370,8 +425,8 @@ export default function SettingsScreen() {
                 return (
                   <View key={cat.id} style={[styles.budgetItem, { borderBottomColor: theme.borderLight }]}>
                     <View style={styles.budgetItemLeft}>
-                      <View style={[styles.budgetItemIcon, { backgroundColor: cat.color + '20' }]}>
-                        <Ionicons name={cat.icon} size={18} color={cat.color} />
+                      <View style={[styles.budgetItemIcon, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+                        <Ionicons name={cat.icon} size={16} color={theme.text} />
                       </View>
                       <Text style={[styles.budgetItemName, { color: theme.text }]}>{cat.name}</Text>
                     </View>
@@ -391,7 +446,7 @@ export default function SettingsScreen() {
                           style={[styles.budgetSaveBtn, { backgroundColor: theme.primary }]}
                           onPress={() => handleSaveBudget(cat.id)}
                         >
-                          <Ionicons name="checkmark" size={18} color="#FFF" />
+                          <Ionicons name="checkmark" size={18} color={isDark ? '#000000' : '#FFFFFF'} />
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -403,7 +458,7 @@ export default function SettingsScreen() {
                         }}
                       >
                         {existing ? (
-                          <Text style={[styles.budgetAmountText, { color: theme.primary }]}>
+                          <Text style={[styles.budgetAmountText, { color: theme.text }]}>
                             {formatCurrency(existing.amount, currency)}
                           </Text>
                         ) : (

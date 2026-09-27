@@ -1,17 +1,33 @@
-import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, Modal, StyleSheet,
-  ScrollView, TextInput, FlatList, Dimensions,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../context/ThemeContext';
+import { useState } from 'react';
+import {
+    Dimensions,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { useExpenses } from '../context/ExpenseContext';
-import { CATEGORY_ICONS, CATEGORY_COLORS } from '../utils/constants';
+import { useTheme } from '../context/ThemeContext';
+import { CATEGORY_COLORS, CATEGORY_ICONS } from '../utils/constants';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+function getContrastColor(hexColor) {
+  const hex = hexColor.replace('#', '');
+  const red = parseInt(hex.slice(0, 2), 16);
+  const green = parseInt(hex.slice(2, 4), 16);
+  const blue = parseInt(hex.slice(4, 6), 16);
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+  return luminance > 160 ? '#111111' : '#FFFFFF';
+}
+
 export default function CategoryPicker({ visible, onClose, onSelect, selectedId }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { categories, addCategory } = useExpenses();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
@@ -41,19 +57,28 @@ export default function CategoryPicker({ visible, onClose, onSelect, selectedId 
       <TouchableOpacity
         style={[
           styles.categoryItem,
-          { backgroundColor: isSelected ? item.color + '25' : theme.surfaceElevated, borderColor: isSelected ? item.color : theme.border },
+          {
+            backgroundColor: isSelected ? theme.primary : theme.surfaceElevated,
+            borderColor: isSelected ? theme.primary : theme.border,
+          },
         ]}
         onPress={() => handleSelect(item)}
         activeOpacity={0.7}
       >
-        <View style={[styles.categoryIcon, { backgroundColor: item.color + '20' }]}>
-          <Ionicons name={item.icon} size={24} color={item.color} />
+        <View style={[styles.categoryIcon, { backgroundColor: item.color || theme.surface, borderColor: theme.border, borderWidth: 1 }]}> 
+          <Ionicons name={item.icon} size={22} color={getContrastColor(item.color || theme.surface)} />
         </View>
-        <Text style={[styles.categoryName, { color: theme.text }]} numberOfLines={1}>
+        <Text
+          style={[
+            styles.categoryName,
+            { color: isSelected ? (isDark ? '#000000' : '#FFFFFF') : theme.text },
+          ]}
+          numberOfLines={1}
+        >
           {item.name}
         </Text>
         {isSelected && (
-          <Ionicons name="checkmark-circle" size={20} color={item.color} style={styles.checkmark} />
+          <Ionicons name="checkmark-circle" size={18} color={isDark ? '#000000' : '#FFFFFF'} style={styles.checkmark} />
         )}
       </TouchableOpacity>
     );
@@ -83,17 +108,17 @@ export default function CategoryPicker({ visible, onClose, onSelect, selectedId 
                           styles.categoryItem,
                           {
                             backgroundColor: theme.surfaceElevated,
-                            borderColor: theme.primary,
+                            borderColor: theme.border,
                             borderStyle: 'dashed',
                           },
                         ]}
                         onPress={() => setShowAddForm(true)}
                         activeOpacity={0.7}
                       >
-                        <View style={[styles.categoryIcon, { backgroundColor: theme.primaryLight }]}>
-                          <Ionicons name="add" size={26} color={theme.primary} />
+                        <View style={[styles.categoryIcon, { backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1 }]}>
+                          <Ionicons name="add" size={24} color={theme.text} />
                         </View>
-                        <Text style={[styles.categoryName, { color: theme.primary, fontWeight: '700' }]} numberOfLines={1}>
+                        <Text style={[styles.categoryName, { color: theme.text, fontWeight: '700' }]} numberOfLines={1}>
                           + Add New
                         </Text>
                       </TouchableOpacity>
@@ -139,13 +164,13 @@ export default function CategoryPicker({ visible, onClose, onSelect, selectedId 
                     style={[
                       styles.iconOption,
                       {
-                        backgroundColor: newIcon === icon ? newColor + '25' : theme.surfaceElevated,
-                        borderColor: newIcon === icon ? newColor : theme.border,
+                        backgroundColor: newIcon === icon ? theme.primary : theme.surfaceElevated,
+                        borderColor: newIcon === icon ? theme.primary : theme.border,
                       },
                     ]}
                     onPress={() => setNewIcon(icon)}
                   >
-                    <Ionicons name={icon} size={22} color={newIcon === icon ? newColor : theme.textSecondary} />
+                    <Ionicons name={icon} size={22} color={newIcon === icon ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -181,7 +206,7 @@ export default function CategoryPicker({ visible, onClose, onSelect, selectedId 
                   onPress={handleAddCategory}
                   disabled={!newName.trim()}
                 >
-                  <Text style={styles.saveBtnText}>Add Category</Text>
+                  <Text style={[styles.saveBtnText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Add Category</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>

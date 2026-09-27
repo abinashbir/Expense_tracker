@@ -1,25 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, Switch, Alert, KeyboardAvoidingView,
-  Platform, ActivityIndicator,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useTheme } from '../../context/ThemeContext';
-import { useSettings } from '../../context/SettingsContext';
+import { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert, KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text, TextInput, TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import CategoryPicker from '../../components/CategoryPicker';
 import { useExpenses } from '../../context/ExpenseContext';
+import { useSettings } from '../../context/SettingsContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getExpenseById } from '../../db/queries';
 import { RECURRENCE_OPTIONS } from '../../utils/constants';
-import CategoryPicker from '../../components/CategoryPicker';
 
 export default function EditExpenseScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const db = useSQLiteContext();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { currency } = useSettings();
   const { updateExpense, deleteExpense, categories } = useExpenses();
 
@@ -168,14 +174,14 @@ export default function EditExpenseScreen() {
           <TouchableOpacity
             style={[styles.selectField, {
               backgroundColor: theme.surface,
-              borderColor: selectedCategory ? selectedCategory.color : theme.border,
+              borderColor: theme.border,
             }]}
             onPress={() => setShowCategoryPicker(true)}
           >
             {selectedCategory ? (
               <View style={styles.selectedRow}>
-                <View style={[styles.catIcon, { backgroundColor: selectedCategory.color + '20' }]}>
-                  <Ionicons name={selectedCategory.icon} size={20} color={selectedCategory.color} />
+                <View style={[styles.catIcon, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+                  <Ionicons name={selectedCategory.icon} size={20} color={theme.text} />
                 </View>
                 <Text style={[styles.selectText, { color: theme.text }]}>{selectedCategory.name}</Text>
               </View>
@@ -192,8 +198,8 @@ export default function EditExpenseScreen() {
             onPress={() => setShowDatePicker(true)}
           >
             <View style={styles.selectedRow}>
-              <View style={[styles.catIcon, { backgroundColor: theme.primaryLight }]}>
-                <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+              <View style={[styles.catIcon, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+                <Ionicons name="calendar-outline" size={20} color={theme.text} />
               </View>
               <Text style={[styles.selectText, { color: theme.text }]}>{formatDateDisplay(date)}</Text>
             </View>
@@ -228,14 +234,14 @@ export default function EditExpenseScreen() {
           {/* Recurring */}
           <View style={[styles.recurringRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.recurringLeft}>
-              <Ionicons name="repeat" size={22} color={theme.primary} />
+              <Ionicons name="repeat" size={20} color={theme.text} />
               <Text style={[styles.recurringTitle, { color: theme.text, marginLeft: 12 }]}>Recurring</Text>
             </View>
             <Switch
               value={isRecurring}
               onValueChange={setIsRecurring}
-              trackColor={{ false: theme.border, true: theme.primaryLight }}
-              thumbColor={isRecurring ? theme.primary : theme.textTertiary}
+              trackColor={{ false: theme.border, true: theme.primary }}
+              thumbColor={isRecurring ? (isDark ? '#000000' : '#FFFFFF') : theme.textTertiary}
             />
           </View>
 
@@ -245,13 +251,13 @@ export default function EditExpenseScreen() {
                 <TouchableOpacity
                   key={opt.value}
                   style={[styles.intervalChip, {
-                    backgroundColor: recurrenceInterval === opt.value ? theme.primaryLight : theme.surface,
+                    backgroundColor: recurrenceInterval === opt.value ? theme.primary : theme.surfaceElevated,
                     borderColor: recurrenceInterval === opt.value ? theme.primary : theme.border,
                   }]}
                   onPress={() => setRecurrenceInterval(opt.value)}
                 >
                   <Text style={[styles.intervalText, {
-                    color: recurrenceInterval === opt.value ? theme.primary : theme.textSecondary,
+                    color: recurrenceInterval === opt.value ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary,
                   }]}>
                     {opt.label}
                   </Text>
@@ -262,21 +268,28 @@ export default function EditExpenseScreen() {
 
           {/* Update Button */}
           <TouchableOpacity
-            style={[styles.updateBtn, { backgroundColor: theme.primary }]}
+            style={[
+              styles.updateBtn,
+              {
+                backgroundColor: theme.primary,
+                borderColor: theme.border,
+                borderWidth: isDark ? 0 : 1,
+              },
+            ]}
             onPress={handleUpdate}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle-outline" size={22} color="#FFF" />
-            <Text style={styles.updateBtnText}>Update Expense</Text>
+            <Ionicons name="checkmark-circle-outline" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
+            <Text style={[styles.updateBtnText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Update Expense</Text>
           </TouchableOpacity>
 
           {/* Delete Button */}
           <TouchableOpacity
-            style={[styles.deleteBtn, { borderColor: theme.danger }]}
+            style={[styles.deleteBtn, { borderColor: theme.border, backgroundColor: theme.surfaceElevated }]}
             onPress={handleDelete}
             activeOpacity={0.8}
           >
-            <Ionicons name="trash-outline" size={20} color={theme.danger} />
+            <Ionicons name="trash-outline" size={18} color={theme.danger} />
             <Text style={[styles.deleteBtnText, { color: theme.danger }]}>Delete Expense</Text>
           </TouchableOpacity>
         </ScrollView>

@@ -1,26 +1,34 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useTheme } from '../../context/ThemeContext';
-import { useSettings } from '../../context/SettingsContext';
-import { useExpenses } from '../../context/ExpenseContext';
+import React, { useCallback, useState } from 'react';
 import {
-  getMonthName, getPreviousMonth, getNextMonth,
-  getCurrentMonth, getWeekRange, getCurrentDate,
-  getWeekDayLabels, formatDateISO,
-} from '../../utils/formatters';
-import { getDailySpending, getCategoryBreakdown } from '../../db/queries';
-import PieChartView from '../../components/PieChartView';
+    ScrollView,
+    StyleSheet,
+    Text, TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import BarChartView from '../../components/BarChartView';
 import EmptyState from '../../components/EmptyState';
+import PieChartView from '../../components/PieChartView';
+import { useExpenses } from '../../context/ExpenseContext';
+import { useSettings } from '../../context/SettingsContext';
+import { useTheme } from '../../context/ThemeContext';
+import { getDailySpending } from '../../db/queries';
+import {
+    formatDateISO,
+    getCurrentDate,
+    getCurrentMonth,
+    getMonthName,
+    getNextMonth,
+    getPreviousMonth,
+    getWeekDayLabels,
+    getWeekRange,
+} from '../../utils/formatters';
 
 export default function StatsScreen() {
   const db = useSQLiteContext();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { currency } = useSettings();
   const { selectedMonth, setSelectedMonth, monthlyTotal, categoryBreakdown } = useExpenses();
 
@@ -93,7 +101,7 @@ export default function StatsScreen() {
             style={[styles.toggleBtn, viewMode === 'monthly' && { backgroundColor: theme.primary }]}
             onPress={() => setViewMode('monthly')}
           >
-            <Text style={[styles.toggleText, { color: viewMode === 'monthly' ? '#FFF' : theme.textSecondary }]}>
+            <Text style={[styles.toggleText, { color: viewMode === 'monthly' ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary }]}>
               Monthly
             </Text>
           </TouchableOpacity>
@@ -101,7 +109,7 @@ export default function StatsScreen() {
             style={[styles.toggleBtn, viewMode === 'weekly' && { backgroundColor: theme.primary }]}
             onPress={() => setViewMode('weekly')}
           >
-            <Text style={[styles.toggleText, { color: viewMode === 'weekly' ? '#FFF' : theme.textSecondary }]}>
+            <Text style={[styles.toggleText, { color: viewMode === 'weekly' ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary }]}>
               Weekly
             </Text>
           </TouchableOpacity>
@@ -153,14 +161,14 @@ export default function StatsScreen() {
                       <View key={cat.id} style={[styles.topCatItem, index < categoryBreakdown.length - 1 && { borderBottomColor: theme.borderLight, borderBottomWidth: 1 }]}>
                         <View style={styles.topCatLeft}>
                           <Text style={[styles.topCatRank, { color: theme.textTertiary }]}>#{index + 1}</Text>
-                          <View style={[styles.topCatIcon, { backgroundColor: cat.color + '20' }]}>
-                            <Ionicons name={cat.icon} size={18} color={cat.color} />
+                          <View style={[styles.topCatIcon, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+                            <Ionicons name={cat.icon} size={16} color={theme.text} />
                           </View>
                           <Text style={[styles.topCatName, { color: theme.text }]}>{cat.name}</Text>
                         </View>
                         <View style={styles.topCatRight}>
                           <View style={styles.topCatBarTrack}>
-                            <View style={[styles.topCatBarFill, { width: `${pct}%`, backgroundColor: cat.color }]} />
+                            <View style={[styles.topCatBarFill, { width: `${pct}%`, backgroundColor: theme.text }]} />
                           </View>
                           <Text style={[styles.topCatPct, { color: theme.textSecondary }]}>
                             {Math.round(pct)}%

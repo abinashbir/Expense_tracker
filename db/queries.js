@@ -128,6 +128,25 @@ export async function getMonthlyTotal(db, yearMonth) {
   return result?.total ?? 0;
 }
 
+export async function getMonthlyIncome(db, yearMonth) {
+  const result = await db.getFirstAsync(
+    `SELECT COALESCE(SUM(amount), 0) as total
+     FROM incomes
+     WHERE date LIKE ?`,
+    [`${yearMonth}%`]
+  );
+  return result?.total ?? 0;
+}
+
+export async function addIncome(db, income) {
+  const result = await db.runAsync(
+    `INSERT INTO incomes (amount, date, source, notes)
+     VALUES (?, ?, ?, ?)`,
+    [income.amount, income.date, income.source || '', income.notes || '']
+  );
+  return result.lastInsertRowId;
+}
+
 /**
  * Get total spending for a date range
  */
@@ -380,11 +399,12 @@ export async function getRecurringExpenses(db) {
  */
 export async function getAllData(db) {
   const expenses = await db.getAllAsync('SELECT * FROM expenses ORDER BY date DESC');
+  const incomes = await db.getAllAsync('SELECT * FROM incomes ORDER BY date DESC');
   const categories = await db.getAllAsync('SELECT * FROM categories ORDER BY id');
   const budgets = await db.getAllAsync('SELECT * FROM budgets ORDER BY month DESC');
   const settings = await getSettings(db);
 
-  return { expenses, categories, budgets, settings, exportDate: new Date().toISOString() };
+  return { expenses, incomes, categories, budgets, settings, exportDate: new Date().toISOString() };
 }
 
 /**
@@ -393,6 +413,7 @@ export async function getAllData(db) {
 export async function restoreData(db, data) {
   // Clear existing data
   await db.execAsync('DELETE FROM expenses');
+  await db.execAsync('DELETE FROM incomes');
   await db.execAsync('DELETE FROM budgets');
   await db.execAsync('DELETE FROM categories');
   await db.execAsync('DELETE FROM settings');
@@ -411,6 +432,13 @@ export async function restoreData(db, data) {
       `INSERT INTO expenses (id, amount, category_id, date, notes, is_recurring, recurrence_interval, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [exp.id, exp.amount, exp.category_id, exp.date, exp.notes, exp.is_recurring, exp.recurrence_interval, exp.created_at, exp.updated_at]
+    );
+  }
+
+  for (const income of data.incomes || []) {
+    await db.runAsync(
+      'INSERT INTO incomes (id, amount, date, source, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [income.id, income.amount, income.date, income.source || '', income.notes || '', income.created_at]
     );
   }
 

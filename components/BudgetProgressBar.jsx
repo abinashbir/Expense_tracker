@@ -18,9 +18,8 @@ export default function BudgetProgressBar({ budget }) {
   // Color based on percentage
   const getBarColor = () => {
     if (overBudget) return theme.danger;
-    if (percentage >= 80) return theme.warning;
-    if (percentage >= 60) return '#F59E0B';
-    return theme.success;
+    if (percentage >= 80) return theme.textSecondary;
+    return theme.text;
   };
 
   const barColor = getBarColor();
@@ -29,8 +28,8 @@ export default function BudgetProgressBar({ budget }) {
     <View style={[styles.container, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.header}>
         <View style={styles.left}>
-          <View style={[styles.iconWrap, { backgroundColor: budget.category_color + '20' }]}>
-            <Ionicons name={budget.category_icon} size={16} color={budget.category_color} />
+          <View style={[styles.iconWrap, { backgroundColor: theme.surfaceElevated, borderColor: theme.border, borderWidth: 1 }]}>
+            <Ionicons name={budget.category_icon} size={15} color={theme.text} />
           </View>
           <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
             {budget.category_name}

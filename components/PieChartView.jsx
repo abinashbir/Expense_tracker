@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
-import { useTheme } from '../context/ThemeContext';
 import { useSettings } from '../context/SettingsContext';
+import { useTheme } from '../context/ThemeContext';
+import { CHART_COLORS } from '../utils/constants';
 import { formatCurrency } from '../utils/formatters';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -19,13 +19,16 @@ export default function PieChartView({ data, totalAmount }) {
     );
   }
 
-  const pieData = data.map((item) => ({
-    value: item.total,
-    color: item.color,
-    text: `${Math.round((item.total / totalAmount) * 100)}%`,
-    textColor: theme.text,
-    focused: false,
-  }));
+  const pieData = data.map((item, index) => {
+    const sliceColor = CHART_COLORS[index % CHART_COLORS.length];
+    return {
+      value: item.total,
+      color: sliceColor,
+      text: `${Math.round((item.total / totalAmount) * 100)}%`,
+      textColor: theme.text,
+      focused: false,
+    };
+  });
 
   return (
     <View style={[styles.container, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -56,7 +59,7 @@ export default function PieChartView({ data, totalAmount }) {
       <View style={styles.legend}>
         {data.map((item, index) => (
           <View key={item.id || index} style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+            <View style={[styles.legendDot, { backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }]} />
             <Text style={[styles.legendName, { color: theme.text }]} numberOfLines={1}>
               {item.name}
             </Text>

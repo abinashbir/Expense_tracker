@@ -13,19 +13,19 @@ const SLIDES = [
   {
     id: '1',
     icon: 'wallet',
-    iconBg: '#6C5CE7',
+    iconBg: '#1A1A1A',
     decorIcons: ['card', 'cash', 'receipt'],
-    decorColors: ['#A78BFA', '#FF6B6B', '#4ECDC4'],
+    decorColors: ['#333333', '#4D4D4D', '#666666'],
     title: 'Track Every Rupee',
     description:
-      'Effortlessly log your daily expenses with beautiful category icons, notes, and recurring tracking. Know exactly where your money goes.',
+      'Effortlessly log your daily expenses with crisp category icons, notes, and recurring tracking. Know exactly where your money goes.',
   },
   {
     id: '2',
     icon: 'shield-checkmark',
-    iconBg: '#10B981',
+    iconBg: '#222222',
     decorIcons: ['trending-up', 'notifications', 'pie-chart'],
-    decorColors: ['#FFEAA7', '#F59E0B', '#45B7D1'],
+    decorColors: ['#3D3D3D', '#545454', '#6E6E6E'],
     title: 'Set Budgets, Stay on Track',
     description:
       'Create monthly budgets for each category and get real-time alerts when you\'re approaching your limits. Stay in control of your finances.',
@@ -33,17 +33,17 @@ const SLIDES = [
   {
     id: '3',
     icon: 'bar-chart',
-    iconBg: '#45B7D1',
+    iconBg: '#2A2A2A',
     decorIcons: ['analytics', 'calendar', 'download'],
-    decorColors: ['#DDA0DD', '#96CEB4', '#FF8A65'],
+    decorColors: ['#474747', '#5E5E5E', '#757575'],
     title: 'Insights at a Glance',
     description:
-      'Beautiful pie charts, bar graphs, and weekly breakdowns help you understand your spending patterns. Export anytime as CSV or JSON.',
+      'Clean graphs, weekly breakdowns, and category insights help you understand your spending patterns. Export anytime as CSV or JSON.',
   },
 ];
 
 export default function OnboardingScreen({ visible, onComplete }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const flatListRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -311,19 +311,26 @@ export default function OnboardingScreen({ visible, onComplete }) {
 
           {/* Next / Get Started button */}
           <TouchableOpacity
-            style={[styles.nextBtn, { backgroundColor: theme.primary }]}
+            style={[
+              styles.nextBtn,
+              {
+                backgroundColor: theme.primary,
+                borderColor: theme.border,
+                borderWidth: isDark ? 0 : 1,
+              },
+            ]}
             onPress={handleNext}
             activeOpacity={0.8}
           >
             {isLastSlide ? (
               <>
-                <Text style={styles.nextBtnText}>Get Started</Text>
-                <Ionicons name="rocket" size={20} color="#FFF" />
+                <Text style={[styles.nextBtnText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Get Started</Text>
+                <Ionicons name="rocket" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
               </>
             ) : (
               <>
-                <Text style={styles.nextBtnText}>Next</Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                <Text style={[styles.nextBtnText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Next</Text>
+                <Ionicons name="arrow-forward" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
               </>
             )}
           </TouchableOpacity>
@@ -433,15 +440,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: '100%',
     gap: 10,
-    shadowColor: '#6C5CE7',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   nextBtnText: {
-    color: '#FFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });

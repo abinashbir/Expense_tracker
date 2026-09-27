@@ -72,7 +72,9 @@ export default function EmptyState({ icon = 'wallet-outline', title, message }) 
         style={[
           styles.iconWrap,
           {
-            backgroundColor: theme.primaryLight,
+            backgroundColor: theme.surfaceElevated,
+            borderColor: theme.border,
+            borderWidth: 1,
             transform: [
               { translateY: floatTranslateY },
               { scale: floatScale },
@@ -80,7 +82,7 @@ export default function EmptyState({ icon = 'wallet-outline', title, message }) 
           },
         ]}
       >
-        <Ionicons name={icon} size={48} color={theme.primary} />
+        <Ionicons name={icon} size={42} color={theme.text} />
       </Animated.View>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>

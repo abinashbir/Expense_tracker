@@ -1,12 +1,17 @@
-// Default categories with Ionicons names and colors
+// Default categories with distinct solid colors
 export const DEFAULT_CATEGORIES = [
-  { name: 'Food', icon: 'fast-food', color: '#FF6B6B', is_default: 1 },
-  { name: 'Transport', icon: 'car', color: '#4ECDC4', is_default: 1 },
-  { name: 'Bills', icon: 'receipt', color: '#45B7D1', is_default: 1 },
-  { name: 'Shopping', icon: 'bag-handle', color: '#96CEB4', is_default: 1 },
-  { name: 'Entertainment', icon: 'game-controller', color: '#FFEAA7', is_default: 1 },
-  { name: 'Health', icon: 'medkit', color: '#DDA0DD', is_default: 1 },
-  { name: 'Other', icon: 'ellipsis-horizontal', color: '#888888', is_default: 1 },
+  { name: 'Food', icon: 'fast-food', color: '#E76F51', is_default: 1 },
+  { name: 'Transport', icon: 'car', color: '#F4A261', is_default: 1 },
+  { name: 'Bills', icon: 'receipt', color: '#E9C46A', is_default: 1 },
+  { name: 'Shopping', icon: 'bag-handle', color: '#5B5BD6', is_default: 1 },
+  { name: 'Entertainment', icon: 'game-controller', color: '#8B5CF6', is_default: 1 },
+  { name: 'Health', icon: 'medkit', color: '#DB2777', is_default: 1 },
+  { name: 'Other', icon: 'ellipsis-horizontal', color: '#334155', is_default: 1 },
+];
+
+export const CHART_COLORS = [
+  '#2563EB', '#7C3AED', '#CA8A04', '#EA580C',
+  '#DB2777', '#475569', '#D95D39', '#4F46E5',
 ];
 
 // Recurrence interval options
@@ -28,56 +33,58 @@ export const CURRENCIES = [
   { symbol: 'C$', code: 'CAD', name: 'Canadian Dollar' },
 ];
 
-// Theme color palettes
+// Warm coral theme palettes
 export const LIGHT_THEME = {
-  background: '#F8F9FA',
+  background: '#FFF8F3',
   surface: '#FFFFFF',
-  surfaceElevated: '#FFFFFF',
-  primary: '#6C5CE7',
-  primaryLight: '#E8E5FF',
-  primaryDark: '#5A4BD1',
-  text: '#1A1A2E',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  danger: '#EF4444',
-  dangerLight: '#FEE2E2',
-  success: '#10B981',
-  successLight: '#D1FAE5',
-  warning: '#F59E0B',
+  surfaceElevated: '#FFF0E8',
+  primary: '#D95D39',
+  primaryLight: '#FFE1D6',
+  primaryDark: '#9C3D28',
+  primaryText: '#FFFFFF',
+  text: '#2D2530',
+  textSecondary: '#6B5E67',
+  textTertiary: '#9B8F96',
+  border: '#E8DCD7',
+  borderLight: '#F2E9E5',
+  danger: '#B42318',
+  dangerLight: '#FEE4E2',
+  success: '#2563EB',
+  successLight: '#DBEAFE',
+  warning: '#B7791F',
   warningLight: '#FEF3C7',
   tabBar: '#FFFFFF',
-  tabBarBorder: '#E5E7EB',
+  tabBarBorder: '#E8DCD7',
   card: '#FFFFFF',
-  shadow: 'rgba(0, 0, 0, 0.08)',
-  overlay: 'rgba(0, 0, 0, 0.5)',
+  shadow: 'rgba(156, 61, 40, 0.14)',
+  overlay: 'rgba(45, 37, 48, 0.45)',
   statusBar: 'dark',
 };
 
 export const DARK_THEME = {
-  background: '#0D1117',
-  surface: '#161B22',
-  surfaceElevated: '#1C2128',
-  primary: '#A78BFA',
-  primaryLight: '#2D2654',
-  primaryDark: '#8B6FE0',
-  text: '#E6EDF3',
-  textSecondary: '#8B949E',
-  textTertiary: '#6E7681',
-  border: '#30363D',
-  borderLight: '#21262D',
-  danger: '#F87171',
-  dangerLight: '#3B1A1A',
-  success: '#34D399',
-  successLight: '#1A3B2A',
-  warning: '#FBBF24',
-  warningLight: '#3B351A',
-  tabBar: '#161B22',
-  tabBarBorder: '#30363D',
-  card: '#161B22',
-  shadow: 'rgba(0, 0, 0, 0.3)',
-  overlay: 'rgba(0, 0, 0, 0.7)',
+  background: '#21161B',
+  surface: '#302027',
+  surfaceElevated: '#3E2830',
+  primary: '#FF8A6B',
+  primaryLight: '#643124',
+  primaryDark: '#8F3425',
+  primaryText: '#FFFFFF',
+  text: '#FFF5F1',
+  textSecondary: '#D3B7AD',
+  textTertiary: '#A98E86',
+  border: '#5A3C42',
+  borderLight: '#442F36',
+  danger: '#FCA5A1',
+  dangerLight: '#5B2928',
+  success: '#60A5FA',
+  successLight: '#1E3A5F',
+  warning: '#FCD34D',
+  warningLight: '#57451B',
+  tabBar: '#2A1B22',
+  tabBarBorder: '#5A3C42',
+  card: '#302027',
+  shadow: 'rgba(0, 0, 0, 0.35)',
+  overlay: 'rgba(22, 12, 17, 0.78)',
   statusBar: 'light',
 };
 
@@ -91,10 +98,9 @@ export const CATEGORY_ICONS = [
   'cut', 'shirt', 'watch', 'laptop', 'phone-portrait',
 ];
 
-// Category color options for custom categories
+// Solid category color options
 export const CATEGORY_COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-  '#DDA0DD', '#888888', '#FF8A65', '#7986CB', '#4DB6AC',
-  '#FFD54F', '#AED581', '#F06292', '#BA68C8', '#4DD0E1',
-  '#9575CD', '#FF7043', '#66BB6A', '#42A5F5', '#EC407A',
+  '#E76F51', '#F4A261', '#E9C46A', '#5B5BD6', '#8B5CF6',
+  '#DB2777', '#334155', '#2563EB', '#4F46E5', '#CA8A04',
+  '#EA580C', '#C026D3', '#BE123C', '#7C3AED', '#475569',
 ];

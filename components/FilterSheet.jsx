@@ -8,7 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useExpenses } from '../context/ExpenseContext';
 
 export default function FilterSheet({ visible, onClose, onApply, currentFilters = {} }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { categories } = useExpenses();
   const [selectedCategory, setSelectedCategory] = useState(currentFilters.categoryId || null);
   const [minAmount, setMinAmount] = useState(currentFilters.minAmount?.toString() || '');
@@ -75,28 +75,31 @@ export default function FilterSheet({ visible, onClose, onApply, currentFilters 
                 ]}
                 onPress={() => setSelectedCategory(null)}
               >
-                <Text style={[styles.catChipText, { color: !selectedCategory ? '#FFF' : theme.text }]}>
+                <Text style={[styles.catChipText, { color: !selectedCategory ? (isDark ? '#000000' : '#FFFFFF') : theme.text }]}>
                   All
                 </Text>
               </TouchableOpacity>
-              {categories.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.catChip,
-                    {
-                      backgroundColor: selectedCategory === cat.id ? cat.color + '25' : theme.surfaceElevated,
-                      borderColor: selectedCategory === cat.id ? cat.color : theme.border,
-                    },
-                  ]}
-                  onPress={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                >
-                  <Ionicons name={cat.icon} size={14} color={selectedCategory === cat.id ? cat.color : theme.textSecondary} />
-                  <Text style={[styles.catChipText, { color: selectedCategory === cat.id ? cat.color : theme.text }]}>
-                    {cat.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {categories.map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.catChip,
+                      {
+                        backgroundColor: isSelected ? theme.primary : theme.surfaceElevated,
+                        borderColor: isSelected ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => setSelectedCategory(isSelected ? null : cat.id)}
+                  >
+                    <Ionicons name={cat.icon} size={14} color={isSelected ? (isDark ? '#000000' : '#FFFFFF') : theme.textSecondary} />
+                    <Text style={[styles.catChipText, { color: isSelected ? (isDark ? '#000000' : '#FFFFFF') : theme.text }]}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
             {/* Amount range */}
@@ -110,7 +113,7 @@ export default function FilterSheet({ visible, onClose, onApply, currentFilters 
                 placeholderTextColor={theme.textTertiary}
                 keyboardType="numeric"
               />
-              <Text style={[styles.amountDash, { color: theme.textTertiary }]}>—</Text>
+              <Text style={[styles.amountDash, { color: theme.textSecondary }]}>—</Text>
               <TextInput
                 style={[styles.amountInput, { backgroundColor: theme.surfaceElevated, color: theme.text, borderColor: theme.border }]}
                 value={maxAmount}
@@ -136,7 +139,7 @@ export default function FilterSheet({ visible, onClose, onApply, currentFilters 
               style={[styles.applyBtn, { backgroundColor: theme.primary }]}
               onPress={handleApply}
             >
-              <Text style={styles.applyBtnText}>Apply Filters</Text>
+              <Text style={[styles.applyBtnText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
         </View>
