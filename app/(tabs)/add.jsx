@@ -38,6 +38,7 @@ export default function AddExpenseScreen() {
   const [recurrenceInterval, setRecurrenceInterval] = useState('monthly');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('Expense saved!');
 
   // Animations
   const successAnim = useRef(new Animated.Value(0)).current;
@@ -115,6 +116,8 @@ export default function AddExpenseScreen() {
 
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
+    const savedType = transactionType;
+
     try {
       if (transactionType === 'income') {
         await addIncome({
@@ -138,12 +141,13 @@ export default function AddExpenseScreen() {
       }
 
       successNotification();
+      setSuccessMessage(savedType === 'income' ? 'Income saved!' : 'Expense saved!');
       showSuccess();
       resetForm();
     } catch (e) {
       console.error('Save error:', e);
       errorNotification();
-      Alert.alert('Error', 'Failed to save expense. Please try again.');
+      Alert.alert('Error', `Failed to save ${savedType}. Please try again.`);
     }
   };
 
@@ -163,7 +167,7 @@ export default function AddExpenseScreen() {
           <Animated.View style={getFormItemStyle(0)}>
             <Text style={[styles.pageTitle, { color: theme.text }]}>Add {transactionType === 'income' ? 'Income' : 'Expense'}</Text>
             <Text style={[styles.pageSubtitle, { color: theme.textSecondary }]}>
-              Track where your money goes
+              {transactionType === 'income' ? 'Log money coming in' : 'Track where your money goes'}
             </Text>
           </Animated.View>
 
@@ -273,7 +277,7 @@ export default function AddExpenseScreen() {
                   if (selectedDate) setDate(selectedDate);
                 }}
                 maximumDate={new Date()}
-                themeVariant={theme === 'dark' ? 'dark' : 'light'}
+                themeVariant={isDark ? 'dark' : 'light'}
               />
             )}
           </Animated.View>
@@ -285,7 +289,7 @@ export default function AddExpenseScreen() {
               style={[styles.notesInput, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="What was this expense for?"
+              placeholder={transactionType === 'income' ? 'Notes about this income...' : 'What was this expense for?'}
               placeholderTextColor={theme.textTertiary}
               multiline
               numberOfLines={3}
@@ -345,8 +349,10 @@ export default function AddExpenseScreen() {
                 ))}
               </View>
             )}
+          </Animated.View>}
 
-            {/* Save Button */}
+          {/* Save Button — always visible for both expense and income */}
+          <Animated.View style={getFormItemStyle(5)}>
             <TouchableOpacity
               style={[
                 styles.saveBtn,
@@ -361,10 +367,10 @@ export default function AddExpenseScreen() {
             >
               <Ionicons name="checkmark-circle-outline" size={20} color={isDark ? '#000000' : '#FFFFFF'} />
               <Text style={[styles.saveBtnText, { color: isDark ? '#000000' : '#FFFFFF' }]}>
-                Save Expense
+                {transactionType === 'income' ? 'Save Income' : 'Save Expense'}
               </Text>
             </TouchableOpacity>
-          </Animated.View>}
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -383,7 +389,7 @@ export default function AddExpenseScreen() {
         pointerEvents="none"
       >
         <Ionicons name="checkmark-circle" size={18} color={isDark ? '#000000' : '#FFFFFF'} />
-        <Text style={[styles.successText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Expense saved!</Text>
+        <Text style={[styles.successText, { color: isDark ? '#000000' : '#FFFFFF' }]}>{successMessage}</Text>
       </Animated.View>
 
       <CategoryPicker

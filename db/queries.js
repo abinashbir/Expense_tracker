@@ -148,6 +148,45 @@ export async function addIncome(db, income) {
 }
 
 /**
+ * Get all incomes for a given month
+ */
+export async function getMonthlyIncomes(db, yearMonth) {
+  return await db.getAllAsync(
+    `SELECT * FROM incomes
+     WHERE date LIKE ?
+     ORDER BY date DESC, created_at DESC`,
+    [`${yearMonth}%`]
+  );
+}
+
+/**
+ * Get a single income by ID
+ */
+export async function getIncomeById(db, id) {
+  return await db.getFirstAsync(
+    'SELECT * FROM incomes WHERE id = ?',
+    [id]
+  );
+}
+
+/**
+ * Update an existing income
+ */
+export async function updateIncome(db, id, income) {
+  await db.runAsync(
+    `UPDATE incomes SET amount = ?, date = ?, source = ?, notes = ? WHERE id = ?`,
+    [income.amount, income.date, income.source || '', income.notes || '', id]
+  );
+}
+
+/**
+ * Delete an income
+ */
+export async function deleteIncome(db, id) {
+  await db.runAsync('DELETE FROM incomes WHERE id = ?', [id]);
+}
+
+/**
  * Get total spending for a date range
  */
 export async function getRangeTotal(db, startDate, endDate) {
@@ -386,7 +425,8 @@ export async function getRecurringExpenses(db) {
      FROM expenses e
      JOIN categories c ON e.category_id = c.id
      WHERE e.is_recurring = 1
-     ORDER BY e.date DESC`
+       AND (e.recurring_id IS NULL OR e.recurring_id = e.id)
+     ORDER BY e.date ASC`
   );
 }
 
@@ -411,6 +451,9 @@ export async function getAllData(db) {
  * Restore data from backup
  */
 export async function restoreData(db, data) {
+  // Keep the onboarding flag so restoring an older backup doesn't replay onboarding.
+  const previousSettings = await getSettings(db);
+
   // Clear existing data
   await db.execAsync('DELETE FROM expenses');
   await db.execAsync('DELETE FROM incomes');
@@ -429,11 +472,25 @@ export async function restoreData(db, data) {
   // Restore expenses
   for (const exp of data.expenses) {
     await db.runAsync(
-      `INSERT INTO expenses (id, amount, category_id, date, notes, is_recurring, recurrence_interval, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [exp.id, exp.amount, exp.category_id, exp.date, exp.notes, exp.is_recurring, exp.recurrence_interval, exp.created_at, exp.updated_at]
+      `INSERT INTO expenses (id, amount, category_id, date, notes, is_recurring, recurrence_interval, recurring_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [exp.id, exp.amount, exp.category_id, exp.date, exp.notes, exp.is_recurring, exp.recurrence_interval, exp.recurring_id ?? null, exp.created_at, exp.updated_at]
     );
   }
+
+  // Older backups have no recurring_id; rebuild the template/instance links so
+  // generated entries are not mistaken for recurring templates.
+  await db.execAsync(`
+    UPDATE expenses
+    SET recurring_id = (
+      SELECT MIN(e2.id) FROM expenses e2
+      WHERE e2.is_recurring = 1
+        AND e2.category_id = expenses.category_id
+        AND e2.amount = expenses.amount
+        AND e2.recurrence_interval = expenses.recurrence_interval
+    )
+    WHERE is_recurring = 1 AND recurring_id IS NULL;
+  `);
 
   for (const income of data.incomes || []) {
     await db.runAsync(
@@ -458,5 +515,12 @@ export async function restoreData(db, data) {
         [key, value]
       );
     }
+  }
+
+  if (!data.settings?.onboarding_completed) {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+      ['onboarding_completed', previousSettings.onboarding_completed || 'true']
+    );
   }
 }

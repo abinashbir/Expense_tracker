@@ -215,6 +215,8 @@ export default function EditExpenseScreen() {
                 setShowDatePicker(Platform.OS === 'ios');
                 if (selectedDate) setDate(selectedDate);
               }}
+              maximumDate={new Date()}
+              themeVariant={isDark ? 'dark' : 'light'}
             />
           )}
 

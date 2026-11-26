@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Animated, PanResponder, Dimensions,
+  Animated, PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -9,17 +9,39 @@ import { useSettings } from '../context/SettingsContext';
 import { formatCurrency, getRelativeDate } from '../utils/formatters';
 import { heavyImpact, mediumImpact } from '../utils/haptics';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = -80;
 const DELETE_THRESHOLD = -160;
 
 export default function ExpenseCard({ expense, onPress, onDelete }) {
   const { theme } = useTheme();
   const { currency } = useSettings();
+  const isIncome = expense._type === 'income';
 
   const translateX = useRef(new Animated.Value(0)).current;
-  const itemHeight = useRef(new Animated.Value(1)).current;
   const hasTriggeredHaptic = useRef(false);
+
+  // Keep the latest props available to the long-lived PanResponder.
+  const onDeleteRef = useRef(onDelete);
+  onDeleteRef.current = onDelete;
+  const expenseIdRef = useRef(expense.id);
+  expenseIdRef.current = expense.id;
+
+  const resetSwipe = useCallback(() => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      bounciness: 8,
+    }).start();
+  }, [translateX]);
+
+  const requestDelete = useCallback(async () => {
+    heavyImpact();
+    const shouldDelete = onDeleteRef.current
+      ? await onDeleteRef.current(expenseIdRef.current)
+      : true;
+    // The parent may ask for confirmation; restore the card if it was canceled.
+    if (shouldDelete === false) resetSwipe();
+  }, [resetSwipe]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -50,22 +72,8 @@ export default function ExpenseCard({ expense, onPress, onDelete }) {
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dx <= DELETE_THRESHOLD) {
-          // Swiped far enough — animate away and delete
-          Animated.parallel([
-            Animated.timing(translateX, {
-              toValue: -SCREEN_WIDTH,
-              duration: 250,
-              useNativeDriver: true,
-            }),
-            Animated.timing(itemHeight, {
-              toValue: 0,
-              duration: 250,
-              delay: 150,
-              useNativeDriver: false,
-            }),
-          ]).start(() => {
-            if (onDelete) onDelete(expense.id);
-          });
+          // Swiped far enough — ask the parent to confirm and delete
+          requestDelete();
         } else if (gestureState.dx <= SWIPE_THRESHOLD) {
           // Partial swipe — snap to reveal delete button
           mediumImpact();
@@ -75,42 +83,12 @@ export default function ExpenseCard({ expense, onPress, onDelete }) {
             bounciness: 8,
           }).start();
         } else {
-          // Snap back
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 8,
-          }).start();
+          resetSwipe();
         }
       },
-      onPanResponderTerminate: () => {
-        Animated.spring(translateX, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 8,
-        }).start();
-      },
+      onPanResponderTerminate: resetSwipe,
     })
   ).current;
-
-  const handleDeletePress = () => {
-    heavyImpact();
-    Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: -SCREEN_WIDTH,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(itemHeight, {
-        toValue: 0,
-        duration: 250,
-        delay: 150,
-        useNativeDriver: false,
-      }),
-    ]).start(() => {
-      if (onDelete) onDelete(expense.id);
-    });
-  };
 
   // Interpolate delete background opacity
   const deleteOpacity = translateX.interpolate({
@@ -126,22 +104,7 @@ export default function ExpenseCard({ expense, onPress, onDelete }) {
   });
 
   return (
-    <Animated.View
-      style={[
-        styles.wrapper,
-        {
-          maxHeight: itemHeight.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 200],
-          }),
-          opacity: itemHeight,
-          marginBottom: itemHeight.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 8],
-          }),
-        },
-      ]}
-    >
+    <View style={styles.wrapper}>
       {/* Delete action behind the card */}
       <Animated.View
         style={[
@@ -154,7 +117,7 @@ export default function ExpenseCard({ expense, onPress, onDelete }) {
       >
         <TouchableOpacity
           style={styles.deleteActionInner}
-          onPress={handleDeletePress}
+          onPress={requestDelete}
           activeOpacity={0.8}
         >
           <Animated.View style={{ transform: [{ scale: deleteScale }] }}>
@@ -210,19 +173,20 @@ export default function ExpenseCard({ expense, onPress, onDelete }) {
           </View>
 
           <View style={styles.amountContainer}>
-            <Text style={[styles.amount, { color: theme.text }]}>
-              {formatCurrency(expense.amount, currency)}
+            <Text style={[styles.amount, { color: isIncome ? theme.success : theme.text }]}>
+              {isIncome ? '+' : ''}{formatCurrency(expense.amount, currency)}
             </Text>
           </View>
         </TouchableOpacity>
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
     marginHorizontal: 16,
+    marginBottom: 8,
     overflow: 'hidden',
   },
   deleteAction: {

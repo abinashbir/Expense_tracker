@@ -1,6 +1,6 @@
 import { DEFAULT_CATEGORIES } from '../utils/constants';
 
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 /**
  * Initialize and migrate the database schema.
@@ -157,6 +157,32 @@ export async function migrateDbIfNeeded(db) {
       );
     }
     currentVersion = 5;
+  }
+
+  if (currentVersion === 5) {
+    // Migration 6: Link auto-generated recurring entries back to their template
+    // so they are not themselves treated as recurring templates.
+    const columns = await db.getAllAsync('PRAGMA table_info(expenses)');
+    if (!columns.some((column) => column.name === 'recurring_id')) {
+      await db.execAsync(
+        'ALTER TABLE expenses ADD COLUMN recurring_id INTEGER DEFAULT NULL'
+      );
+    }
+
+    // Backfill existing recurring rows: the earliest row in each series becomes
+    // the template (linked to itself); later rows become its instances.
+    await db.execAsync(`
+      UPDATE expenses
+      SET recurring_id = (
+        SELECT MIN(e2.id) FROM expenses e2
+        WHERE e2.is_recurring = 1
+          AND e2.category_id = expenses.category_id
+          AND e2.amount = expenses.amount
+          AND e2.recurrence_interval = expenses.recurrence_interval
+      )
+      WHERE is_recurring = 1;
+    `);
+    currentVersion = 6;
   }
 
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);

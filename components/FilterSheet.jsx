@@ -17,9 +17,11 @@ export default function FilterSheet({ visible, onClose, onApply, currentFilters 
 
   const handleApply = () => {
     const filters = {};
+    const min = parseFloat(minAmount);
+    const max = parseFloat(maxAmount);
     if (selectedCategory) filters.categoryId = selectedCategory;
-    if (minAmount) filters.minAmount = parseFloat(minAmount);
-    if (maxAmount) filters.maxAmount = parseFloat(maxAmount);
+    if (minAmount && !isNaN(min)) filters.minAmount = min;
+    if (maxAmount && !isNaN(max)) filters.maxAmount = max;
     if (searchText.trim()) filters.searchText = searchText.trim();
     onApply(filters);
     onClose();

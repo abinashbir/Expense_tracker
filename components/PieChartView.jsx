@@ -19,12 +19,14 @@ export default function PieChartView({ data, totalAmount }) {
     );
   }
 
+  const getPercent = (value) => (totalAmount > 0 ? Math.round((value / totalAmount) * 100) : 0);
+
   const pieData = data.map((item, index) => {
     const sliceColor = CHART_COLORS[index % CHART_COLORS.length];
     return {
       value: item.total,
       color: sliceColor,
-      text: `${Math.round((item.total / totalAmount) * 100)}%`,
+      text: `${getPercent(item.total)}%`,
       textColor: theme.text,
       focused: false,
     };
@@ -67,7 +69,7 @@ export default function PieChartView({ data, totalAmount }) {
               {formatCurrency(item.total, currency)}
             </Text>
             <Text style={[styles.legendPercent, { color: theme.textTertiary }]}>
-              {Math.round((item.total / totalAmount) * 100)}%
+              {getPercent(item.total)}%
             </Text>
           </View>
         ))}

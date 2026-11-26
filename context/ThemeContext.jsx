@@ -20,19 +20,23 @@ export function ThemeProvider({ children }) {
   const theme = isDark ? DARK_THEME : LIGHT_THEME;
 
   // Load preference from DB
+  const reloadTheme = useCallback(async () => {
+    try {
+      const settings = await getSettings(db);
+      if (settings.darkMode) {
+        setMode(settings.darkMode);
+      }
+    } catch (e) {
+      console.error('Failed to load theme setting:', e);
+    }
+  }, [db]);
+
   useEffect(() => {
     (async () => {
-      try {
-        const settings = await getSettings(db);
-        if (settings.darkMode) {
-          setMode(settings.darkMode);
-        }
-      } catch (e) {
-        console.error('Failed to load theme setting:', e);
-      }
+      await reloadTheme();
       setIsLoaded(true);
     })();
-  }, [db]);
+  }, [reloadTheme]);
 
   const setThemeMode = useCallback(async (newMode) => {
     setMode(newMode);
@@ -51,7 +55,7 @@ export function ThemeProvider({ children }) {
   if (!isLoaded) return null;
 
   return (
-    <ThemeContext.Provider value={{ theme, isDark, mode, setThemeMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, isDark, mode, setThemeMode, toggleTheme, reloadTheme }}>
       {children}
     </ThemeContext.Provider>
   );

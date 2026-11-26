@@ -8,6 +8,7 @@ import { SettingsProvider } from '../context/SettingsContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { migrateDbIfNeeded } from '../db/database';
 import { getSettings, setSetting } from '../db/queries';
+import { processRecurringExpenses } from '../utils/recurring';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -20,12 +21,40 @@ export default function RootLayout() {
     <SQLiteProvider databaseName="expense_tracker.db" onInit={migrateDbIfNeeded}>
       <ThemeProvider>
         <SettingsProvider>
-          <ExpenseProvider>
-            <RootLayoutNav />
-          </ExpenseProvider>
+          <AppBootstrap />
         </SettingsProvider>
       </ThemeProvider>
     </SQLiteProvider>
+  );
+}
+
+/**
+ * Runs one-time startup work (recurring expenses) before mounting the provider
+ * that reads the database, so generated entries appear immediately.
+ */
+function AppBootstrap() {
+  const db = useSQLiteContext();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      await processRecurringExpenses(db);
+      if (!cancelled) setReady(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [db]);
+
+  if (!ready) return null;
+
+  return (
+    <ExpenseProvider>
+      <RootLayoutNav />
+    </ExpenseProvider>
   );
 }
 
@@ -44,7 +73,7 @@ function RootLayoutNav() {
           setShowOnboarding(true);
         }
       } catch (e) {
-        console.error('Failed to check onboarding status:', e);
+        console.error('Failed to initialize app:', e);
       }
       setOnboardingChecked(true);
     })();
@@ -74,6 +103,13 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="edit/[id]"
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="edit-income/[id]"
           options={{
             presentation: 'modal',
             animation: 'slide_from_bottom',

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
 import {
@@ -26,8 +26,8 @@ import { requestNotificationPermissions, scheduleDailyReminder } from '../../uti
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
-  const { theme, isDark, mode, setThemeMode, toggleTheme } = useTheme();
-  const { currency, setCurrency } = useSettings();
+  const { theme, isDark, mode, setThemeMode, toggleTheme, reloadTheme } = useTheme();
+  const { currency, setCurrency, reloadSettings } = useSettings();
   const {
     categories, budgets, addCategory, deleteCategory,
     saveBudget, removeBudget, selectedMonth, refreshData,
@@ -64,7 +64,7 @@ export default function SettingsScreen() {
   const handleRestoreBackup = () => {
     Alert.alert(
       'Restore Backup',
-      'This will replace all current expenses, categories, budgets, and settings. Continue?',
+      'This will replace all current income, expenses, categories, budgets, and settings. Continue?',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Restore', style: 'destructive', onPress: restoreBackupFile },
@@ -83,7 +83,7 @@ export default function SettingsScreen() {
 
       const jsonString = await FileSystem.readAsStringAsync(result.assets[0].uri);
       await restoreBackup(db, jsonString);
-      await refreshData();
+      await Promise.all([refreshData(), reloadTheme(), reloadSettings()]);
       Alert.alert('Restore Complete', 'Your backup data has been restored.');
     } catch (e) {
       console.error('Restore failed:', e);
@@ -263,7 +263,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="information-circle"
             title="Version"
-            subtitle="1.0.1"
+            subtitle="1.0.2"
             last
           />
         </View>

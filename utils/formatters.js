@@ -100,6 +100,7 @@ export function getRelativeDate(dateStr) {
 
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 0) return formatDateShort(dateStr);
   if (diffDays < 7) return `${diffDays} days ago`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
   return formatDateShort(dateStr);

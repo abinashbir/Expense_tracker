@@ -10,19 +10,23 @@ export function SettingsProvider({ children }) {
   const [currency, setCurrencyState] = useState('₹');
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const reloadSettings = useCallback(async () => {
+    try {
+      const settings = await getSettings(db);
+      if (settings.currency) {
+        setCurrencyState(settings.currency);
+      }
+    } catch (e) {
+      console.error('Failed to load settings:', e);
+    }
+  }, [db]);
+
   useEffect(() => {
     (async () => {
-      try {
-        const settings = await getSettings(db);
-        if (settings.currency) {
-          setCurrencyState(settings.currency);
-        }
-      } catch (e) {
-        console.error('Failed to load settings:', e);
-      }
+      await reloadSettings();
       setIsLoaded(true);
     })();
-  }, [db]);
+  }, [reloadSettings]);
 
   const setCurrency = useCallback(async (symbol) => {
     setCurrencyState(symbol);
@@ -40,7 +44,7 @@ export function SettingsProvider({ children }) {
   if (!isLoaded) return null;
 
   return (
-    <SettingsContext.Provider value={{ currency, setCurrency, getCurrencyInfo }}>
+    <SettingsContext.Provider value={{ currency, setCurrency, getCurrencyInfo, reloadSettings }}>
       {children}
     </SettingsContext.Provider>
   );

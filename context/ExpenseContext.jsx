@@ -6,6 +6,7 @@ import { getCurrentMonth } from '../utils/formatters';
 // Action types
 const ACTIONS = {
   SET_EXPENSES: 'SET_EXPENSES',
+  SET_INCOMES: 'SET_INCOMES',
   SET_CATEGORIES: 'SET_CATEGORIES',
   SET_BUDGETS: 'SET_BUDGETS',
   SET_MONTHLY_TOTAL: 'SET_MONTHLY_TOTAL',
@@ -20,6 +21,7 @@ const ACTIONS = {
 
 const initialState = {
   expenses: [],
+  incomes: [],
   categories: [],
   budgets: [],
   monthlyTotal: 0,
@@ -35,6 +37,8 @@ function reducer(state, action) {
   switch (action.type) {
     case ACTIONS.SET_EXPENSES:
       return { ...state, expenses: action.payload };
+    case ACTIONS.SET_INCOMES:
+      return { ...state, incomes: action.payload };
     case ACTIONS.SET_CATEGORIES:
       return { ...state, categories: action.payload };
     case ACTIONS.SET_BUDGETS:
@@ -52,7 +56,7 @@ function reducer(state, action) {
     case ACTIONS.SET_LOADING:
       return { ...state, loading: action.payload };
     case ACTIONS.SET_FILTERS:
-      return { ...state, filters: { ...state.filters, ...action.payload } };
+      return { ...state, filters: action.payload };
     case ACTIONS.CLEAR_FILTERS:
       return { ...state, filters: {} };
     default:
@@ -66,29 +70,6 @@ export function ExpenseProvider({ children }) {
   const db = useSQLiteContext();
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Load initial data
-  useEffect(() => {
-    loadAllData();
-  }, [state.selectedMonth]);
-
-  const loadAllData = useCallback(async () => {
-    dispatch({ type: ACTIONS.SET_LOADING, payload: true });
-    try {
-      await Promise.all([
-        loadExpenses(),
-        loadCategories(),
-        loadBudgets(),
-        loadMonthlyTotal(),
-        loadMonthlyIncome(),
-        loadTotalMonthlyBudget(),
-        loadCategoryBreakdown(),
-      ]);
-    } catch (e) {
-      console.error('Failed to load data:', e);
-    }
-    dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-  }, [db, state.selectedMonth, state.filters]);
-
   const loadExpenses = useCallback(async () => {
     const filters = {
       ...state.filters,
@@ -98,6 +79,11 @@ export function ExpenseProvider({ children }) {
     const expenses = await queries.getAllExpenses(db, filters);
     dispatch({ type: ACTIONS.SET_EXPENSES, payload: expenses });
   }, [db, state.selectedMonth, state.filters]);
+
+  const loadIncomes = useCallback(async () => {
+    const incomes = await queries.getMonthlyIncomes(db, state.selectedMonth);
+    dispatch({ type: ACTIONS.SET_INCOMES, payload: incomes });
+  }, [db, state.selectedMonth]);
 
   const loadCategories = useCallback(async () => {
     const categories = await queries.getAllCategories(db);
@@ -129,6 +115,39 @@ export function ExpenseProvider({ children }) {
     dispatch({ type: ACTIONS.SET_CATEGORY_BREAKDOWN, payload: breakdown });
   }, [db, state.selectedMonth]);
 
+  const loadAllData = useCallback(async () => {
+    dispatch({ type: ACTIONS.SET_LOADING, payload: true });
+    try {
+      await Promise.all([
+        loadExpenses(),
+        loadIncomes(),
+        loadCategories(),
+        loadBudgets(),
+        loadMonthlyTotal(),
+        loadMonthlyIncome(),
+        loadTotalMonthlyBudget(),
+        loadCategoryBreakdown(),
+      ]);
+    } catch (e) {
+      console.error('Failed to load data:', e);
+    }
+    dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+  }, [
+    loadExpenses,
+    loadIncomes,
+    loadCategories,
+    loadBudgets,
+    loadMonthlyTotal,
+    loadMonthlyIncome,
+    loadTotalMonthlyBudget,
+    loadCategoryBreakdown,
+  ]);
+
+  // Reload whenever the selected month or active filters change.
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
   // CRUD Actions
   const addExpense = useCallback(async (expense) => {
     const id = await queries.addExpense(db, expense);
@@ -140,6 +159,16 @@ export function ExpenseProvider({ children }) {
     const id = await queries.addIncome(db, income);
     await loadAllData();
     return id;
+  }, [db, loadAllData]);
+
+  const updateIncome = useCallback(async (id, income) => {
+    await queries.updateIncome(db, id, income);
+    await loadAllData();
+  }, [db, loadAllData]);
+
+  const deleteIncome = useCallback(async (id) => {
+    await queries.deleteIncome(db, id);
+    await loadAllData();
   }, [db, loadAllData]);
 
   const updateExpense = useCallback(async (id, expense) => {
@@ -202,7 +231,9 @@ export function ExpenseProvider({ children }) {
         addExpense,
         addIncome,
         updateExpense,
+        updateIncome,
         deleteExpense,
+        deleteIncome,
         addCategory,
         deleteCategory,
         saveBudget,

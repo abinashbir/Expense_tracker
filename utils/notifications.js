@@ -1,22 +1,44 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getBudgetStatus } from '../db/queries';
 
-// Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// expo-notifications throws at import time in Expo Go (SDK 53+ removed Android
+// push notifications there). Load it lazily so the rest of the app still works.
+// A development build loads it normally and gets full local notifications.
+let notifications = null;
+let loadFailed = false;
+
+function getNotifications() {
+  if (notifications) return notifications;
+  if (loadFailed) return null;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('expo-notifications');
+    mod.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    notifications = mod;
+    return notifications;
+  } catch (e) {
+    console.warn('Notifications are not available in this build:', e?.message || e);
+    loadFailed = true;
+    return null;
+  }
+}
 
 /**
  * Request notification permissions from the user
  */
 export async function requestNotificationPermissions() {
+  const Notifications = getNotifications();
+  if (!Notifications) return false;
+
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -43,6 +65,9 @@ export async function requestNotificationPermissions() {
 }
 
 export async function scheduleDailyReminder() {
+  const Notifications = getNotifications();
+  if (!Notifications) return null;
+
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   const existing = scheduled.filter((notification) => notification.content.data?.type === 'daily-reminder');
 
@@ -55,9 +80,13 @@ export async function scheduleDailyReminder() {
       title: 'Log today\'s spending',
       body: 'Keep your expense tracker up to date in a few seconds.',
       data: { type: 'daily-reminder' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: 20,
+      minute: 0,
       ...(Platform.OS === 'android' && { channelId: 'budget-alerts' }),
     },
-    trigger: { hour: 20, minute: 0, repeats: true },
   });
 }
 
@@ -96,13 +125,16 @@ export async function checkBudgetAndNotify(db, categoryId, yearMonth, categoryNa
  * Schedule a local notification immediately
  */
 async function scheduleNotification(title, body) {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
   await Notifications.scheduleNotificationAsync({
     content: {
       title,
       body,
       sound: true,
-      ...(Platform.OS === 'android' && { channelId: 'budget-alerts' }),
     },
-    trigger: null, // Show immediately
+    // A channel-aware trigger is delivered immediately on Android.
+    trigger: Platform.OS === 'android' ? { channelId: 'budget-alerts' } : null,
   });
 }

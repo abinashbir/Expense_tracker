@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+    Alert,
     Animated,
     FlatList,
     Modal,
@@ -29,9 +30,9 @@ export default function HomeScreen() {
   const { theme, isDark } = useTheme();
   const { currency } = useSettings();
   const {
-    expenses, budgets, monthlyTotal, monthlyIncome, totalMonthlyBudget,
+    expenses, incomes, budgets, monthlyTotal, monthlyIncome, totalMonthlyBudget,
     selectedMonth, setSelectedMonth, loading, filters, setFilters,
-    clearFilters, deleteExpense, refreshData, saveTotalMonthlyBudget,
+    clearFilters, deleteExpense, deleteIncome, refreshData, saveTotalMonthlyBudget,
   } = useExpenses();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -78,9 +79,63 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [refreshData]);
 
-  const handleDelete = useCallback((id) => {
-    deleteExpense(id);
-  }, [deleteExpense]);
+  const handleDelete = useCallback((id, type = 'expense') => {
+    const isIncome = type === 'income';
+    // Resolve true once the item is deleted, false if the user cancels, so the
+    // card can restore itself instead of staying swiped away.
+    return new Promise((resolve) => {
+      Alert.alert(
+        isIncome ? 'Delete Income' : 'Delete Expense',
+        `Are you sure you want to delete this ${isIncome ? 'income' : 'expense'}?`,
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await (isIncome ? deleteIncome(id) : deleteExpense(id));
+                resolve(true);
+              } catch (e) {
+                console.error('Delete failed:', e);
+                resolve(false);
+              }
+            },
+          },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) }
+      );
+    });
+  }, [deleteExpense, deleteIncome]);
+
+  // Incomes are loaded for the whole month, so apply the same filters used for
+  // expenses. Category filters only make sense for expenses, so they exclude
+  // income entries entirely.
+  const filteredIncomes = incomes.filter((income) => {
+    if (filters.categoryId) return false;
+    if (filters.minAmount !== undefined && filters.minAmount !== null && income.amount < filters.minAmount) return false;
+    if (filters.maxAmount !== undefined && filters.maxAmount !== null && income.amount > filters.maxAmount) return false;
+    if (filters.searchText) {
+      const haystack = `${income.source || ''} ${income.notes || ''}`.toLowerCase();
+      if (!haystack.includes(filters.searchText.toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  // Merge expenses and incomes into a single sorted list
+  const transactions = [
+    ...expenses.map(e => ({ ...e, _type: 'expense' })),
+    ...filteredIncomes.map(i => ({
+      ...i,
+      _type: 'income',
+      category_name: i.source || 'Income',
+      category_icon: 'arrow-up-circle',
+      category_color: '#22C55E',
+    })),
+  ].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 
   const handleMonthNav = useCallback((direction) => {
     lightImpact();
@@ -227,7 +282,7 @@ export default function HomeScreen() {
           )}
 
           <Text style={styles.totalSub}>
-            {expenses.length} transaction{expenses.length !== 1 ? 's' : ''} in {getMonthName(selectedMonth)}
+            {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} in {getMonthName(selectedMonth)}
           </Text>
         </View>
       </Animated.View>
@@ -258,7 +313,7 @@ export default function HomeScreen() {
       {/* Recent Expenses Header */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          {hasFilters ? 'Filtered Results' : 'Recent Expenses'}
+          {hasFilters ? 'Filtered Results' : 'Recent Transactions'}
         </Text>
         <TouchableOpacity
           onPress={() => {
@@ -293,22 +348,24 @@ export default function HomeScreen() {
 
   // Staggered animation for list items
   const AnimatedExpenseCard = useCallback(({ item, index }) => {
-    return <StaggeredItem index={index} item={item} onPress={() => router.push(`/edit/${item.id}`)} onDelete={handleDelete} />;
+    const isIncome = item._type === 'income';
+    const editRoute = isIncome ? `/edit-income/${item.id}` : `/edit/${item.id}`;
+    return <StaggeredItem index={index} item={item} onPress={() => router.push(editRoute)} onDelete={(id) => handleDelete(id, item._type)} />;
   }, [handleDelete, router]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <FlatList
-        data={expenses}
-        keyExtractor={(item) => item.id.toString()}
+        data={transactions}
+        keyExtractor={(item) => `${item._type}-${item.id}`}
         renderItem={AnimatedExpenseCard}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           !loading && (
             <EmptyState
               icon="receipt-outline"
-              title={hasFilters ? 'No matches found' : 'No expenses yet'}
-              message={hasFilters ? 'Try adjusting your filters' : 'Tap the + button to add your first expense'}
+              title={hasFilters ? 'No matches found' : 'No transactions yet'}
+              message={hasFilters ? 'Try adjusting your filters' : 'Tap the + button to add your first expense or income'}
             />
           )
         }
