@@ -49,15 +49,14 @@ export default function HomeScreen() {
   const isCurrentMonth = selectedMonth === getCurrentMonth();
   const hasFilters = Object.keys(filters).length > 0;
 
-  // Income increases the amount available to spend, while the manually set
-  // monthly budget remains a separate target that can still be edited.
-  const availableBudget = Number(totalMonthlyBudget || 0) + Number(monthlyIncome || 0);
+  // Available funds start with the monthly budget, increase with income, and
+  // decrease with spending.
+  const budgetLimit = Number(totalMonthlyBudget || 0) + Number(monthlyIncome || 0);
+  const available = budgetLimit - Number(monthlyTotal || 0);
   const hasManualBudget = Number(totalMonthlyBudget || 0) > 0;
-  const hasBudget = availableBudget > 0;
-  const budgetPercentage = hasBudget ? Math.min((Number(monthlyTotal || 0) / availableBudget) * 100, 100) : 0;
-  const remainingBudget = availableBudget - Number(monthlyTotal || 0);
-  const isOverBudget = hasBudget && remainingBudget < 0;
-  const monthlyBalance = Number(monthlyIncome || 0) - Number(monthlyTotal || 0);
+  const hasBudget = budgetLimit > 0;
+  const budgetPercentage = hasBudget ? Math.min((Number(monthlyTotal || 0) / budgetLimit) * 100, 100) : 0;
+  const isOverBudget = hasBudget && available < 0;
 
   // Animate total card on mount / month change
   useEffect(() => {
@@ -216,14 +215,8 @@ export default function HomeScreen() {
         <View style={styles.totalCardInner}>
           <View style={styles.cardTopRow}>
             <View>
-              <Text style={styles.totalLabel}>Total Spent</Text>
-              <Text style={styles.totalAmount}>{formatCurrency(monthlyTotal, currency)}</Text>
-              <View style={styles.balanceRow}>
-                <Text style={styles.balanceLabel}>Balance</Text>
-                <Text style={[styles.balanceAmount, { color: monthlyBalance >= 0 ? theme.success : theme.danger }]}>
-                  {formatCurrency(monthlyBalance, currency)}
-                </Text>
-              </View>
+              <Text style={styles.totalLabel}>Available</Text>
+              <Text style={styles.totalAmount}>{formatCurrency(available, currency)}</Text>
             </View>
 
             <TouchableOpacity
@@ -237,7 +230,7 @@ export default function HomeScreen() {
             >
               <Ionicons name={hasManualBudget ? 'pencil' : 'add-circle'} size={14} color="#FFF" />
               <Text style={styles.budgetBadgeText}>
-                {hasBudget ? `Available: ${formatCurrency(availableBudget, currency)}` : 'Set Budget'}
+                {hasBudget ? `Budget: ${formatCurrency(budgetLimit, currency)}` : 'Set Budget'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -258,17 +251,7 @@ export default function HomeScreen() {
               </View>
               <View style={styles.budgetInfoRow}>
                 <Text style={styles.budgetInfoText}>
-                  {Math.round(budgetPercentage)}% spent
-                </Text>
-                <Text
-                  style={[
-                    styles.budgetInfoText,
-                    { fontWeight: '700', color: isOverBudget ? theme.danger : 'rgba(255,255,255,0.9)' },
-                  ]}
-                >
-                  {isOverBudget
-                    ? `Over by ${formatCurrency(Math.abs(remainingBudget), currency)}`
-                    : `${formatCurrency(remainingBudget, currency)} left`}
+                  {isOverBudget ? 'Over budget' : `${Math.round(budgetPercentage)}% spent`}
                 </Text>
               </View>
             </View>
@@ -409,7 +392,7 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
             >
               <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
-                Set a spending target for {getMonthName(selectedMonth)}. Income is added to your available budget automatically.
+                Set a starting amount for {getMonthName(selectedMonth)}. Income is added and spending is deducted automatically.
               </Text>
 
               <View style={[styles.budgetInputCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -578,22 +561,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
     letterSpacing: -1,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
-  },
-  balanceLabel: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  balanceAmount: {
-    fontSize: 13,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
   },
   budgetBadge: {
     flexDirection: 'row',
