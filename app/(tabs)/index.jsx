@@ -5,7 +5,9 @@ import {
     Alert,
     Animated,
     FlatList,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -383,7 +385,10 @@ export default function HomeScreen() {
 
       {/* Set/Edit Monthly Budget Modal */}
       <Modal visible={showBudgetModal} animationType="slide" transparent>
-        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+        <KeyboardAvoidingView
+          style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={[styles.modalSheet, { backgroundColor: theme.background }]}>
             <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>
@@ -394,7 +399,12 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalContent}>
+            <ScrollView
+              style={styles.modalContent}
+              contentContainerStyle={styles.modalContentContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
                 Target spending for {getMonthName(selectedMonth)}
               </Text>
@@ -429,25 +439,25 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+            </ScrollView>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalCancelBtn, { borderColor: theme.border }]}
-                  onPress={() => setShowBudgetModal(false)}
-                >
-                  <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
-                </TouchableOpacity>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalCancelBtn, { borderColor: theme.border }]}
+                onPress={() => setShowBudgetModal(false)}
+              >
+                <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.modalSaveBtn, { backgroundColor: theme.primary }]}
-                  onPress={handleSaveBudget}
-                >
-                  <Text style={[styles.modalSaveText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Save Budget</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, { backgroundColor: theme.primary }]}
+                onPress={handleSaveBudget}
+              >
+                <Text style={[styles.modalSaveText, { color: isDark ? '#000000' : '#FFFFFF' }]}>Save Budget</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <FilterSheet
@@ -722,7 +732,8 @@ const styles = StyleSheet.create({
   modalSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 36,
+    paddingBottom: 12,
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -737,7 +748,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalContent: {
-    padding: 20,
+    flexShrink: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  modalContentContainer: {
+    paddingBottom: 8,
   },
   modalSubtitle: {
     fontSize: 14,
@@ -782,6 +798,8 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
   modalCancelBtn: {
     flex: 1,
