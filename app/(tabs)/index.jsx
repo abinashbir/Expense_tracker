@@ -49,12 +49,15 @@ export default function HomeScreen() {
   const isCurrentMonth = selectedMonth === getCurrentMonth();
   const hasFilters = Object.keys(filters).length > 0;
 
-  // Budget calculations
-  const hasBudget = totalMonthlyBudget > 0;
-  const budgetPercentage = hasBudget ? Math.min((monthlyTotal / totalMonthlyBudget) * 100, 100) : 0;
-  const remainingBudget = totalMonthlyBudget - monthlyTotal;
+  // Income increases the amount available to spend, while the manually set
+  // monthly budget remains a separate target that can still be edited.
+  const availableBudget = Number(totalMonthlyBudget || 0) + Number(monthlyIncome || 0);
+  const hasManualBudget = Number(totalMonthlyBudget || 0) > 0;
+  const hasBudget = availableBudget > 0;
+  const budgetPercentage = hasBudget ? Math.min((Number(monthlyTotal || 0) / availableBudget) * 100, 100) : 0;
+  const remainingBudget = availableBudget - Number(monthlyTotal || 0);
   const isOverBudget = hasBudget && remainingBudget < 0;
-  const monthlyBalance = monthlyIncome - monthlyTotal;
+  const monthlyBalance = Number(monthlyIncome || 0) - Number(monthlyTotal || 0);
 
   // Animate total card on mount / month change
   useEffect(() => {
@@ -217,7 +220,7 @@ export default function HomeScreen() {
               <Text style={styles.totalAmount}>{formatCurrency(monthlyTotal, currency)}</Text>
               <View style={styles.balanceRow}>
                 <Text style={styles.balanceLabel}>Balance</Text>
-                <Text style={[styles.balanceAmount, { color: monthlyBalance >= 0 ? '#A3A3A3' : '#D4D4D4' }]}>
+                <Text style={[styles.balanceAmount, { color: monthlyBalance >= 0 ? theme.success : theme.danger }]}>
                   {formatCurrency(monthlyBalance, currency)}
                 </Text>
               </View>
@@ -232,9 +235,9 @@ export default function HomeScreen() {
               }}
               activeOpacity={0.8}
             >
-              <Ionicons name={hasBudget ? 'pencil' : 'add-circle'} size={14} color="#FFF" />
+              <Ionicons name={hasManualBudget ? 'pencil' : 'add-circle'} size={14} color="#FFF" />
               <Text style={styles.budgetBadgeText}>
-                {hasBudget ? `Budget: ${formatCurrency(totalMonthlyBudget, currency)}` : 'Set Budget'}
+                {hasBudget ? `Available: ${formatCurrency(availableBudget, currency)}` : 'Set Budget'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -392,7 +395,7 @@ export default function HomeScreen() {
           <View style={[styles.modalSheet, { backgroundColor: theme.background }]}>
             <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
               <Text style={[styles.modalTitle, { color: theme.text }]}>
-                {hasBudget ? 'Edit Monthly Budget' : 'Set Monthly Budget'}
+                {hasManualBudget ? 'Edit Monthly Budget' : 'Set Monthly Budget'}
               </Text>
               <TouchableOpacity onPress={() => setShowBudgetModal(false)}>
                 <Ionicons name="close-circle" size={28} color={theme.textSecondary} />
@@ -406,7 +409,7 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
             >
               <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
-                Target spending for {getMonthName(selectedMonth)}
+                Set a spending target for {getMonthName(selectedMonth)}. Income is added to your available budget automatically.
               </Text>
 
               <View style={[styles.budgetInputCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
